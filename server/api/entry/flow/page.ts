@@ -26,6 +26,7 @@ import prisma from "~/lib/prisma";
  *             pageNum: number 页码（默认为1）
  *             pageSize: number 每页大小（默认为15，-1表示查询全部）
  *             moneySort: string 金额排序（asc/desc）
+ *             daySort: string 日期排序（asc/desc）
  *             minMoney: number 最小金额（可选）
  *             maxMoney: number 最大金额（可选）
  *     responses:
@@ -139,19 +140,22 @@ export default defineEventHandler(async (event) => {
   const skip = (pageNum - 1) * pageSize; // 计算跳过的条目数
 
   // 排序条件
-  const orderBy: any = [
-    {
-      day: "desc",
-    },
-    {
-      id: "desc", // 添加ID排序确保排序稳定性
-    },
-  ];
+  const orderBy: any = [];
+  
+  // 优先处理用户指定的排序
   if (body.moneySort) {
-    // console.log(body.moneySort)
-    // 将金额排序设置到第一个
-    orderBy.unshift({ money: String(body.moneySort) });
+    // 金额排序
+    orderBy.push({ money: String(body.moneySort) });
+  } else if (body.daySort) {
+    // 日期排序
+    orderBy.push({ day: String(body.daySort) });
+  } else {
+    // 默认排序：日期降序
+    orderBy.push({ day: "desc" });
   }
+  
+  // 添加ID排序确保排序稳定性
+  orderBy.push({ id: "desc" });
   let flows;
   if (pageSize == -1) {
     // 查询全部

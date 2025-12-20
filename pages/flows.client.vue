@@ -6,10 +6,12 @@
     <!-- 操作栏 -->
     <FlowsToolbar
       :selected-count="selectedFlows.length"
+      :is-selection-mode="isSelectionMode"
+      :has-filters="hasFilters"
       @open-import-export="importDrawer = true"
-      @auto-merge="toAutoMergeFlows"
-      @auto-deduplication="toAutoDeduplicationFlows"
       @create-new="openCreateDialog"
+      @enter-selection-mode="enterSelectionMode"
+      @exit-selection-mode="exitSelectionMode"
       @delete-selected="deleteItems"
       @batch-change-type="toChangeTypeBatch"
       @open-search="searchDrawer = true"
@@ -22,19 +24,22 @@
       :flows="flowPageRef.data || []"
       :selected-items="selectedFlows"
       :is-all-selected="isAllSelected"
+      :is-selection-mode="isSelectionMode"
       :current-page="flowQuery.pageNum || 1"
       :page-size="flowQuery.pageSize || 20"
       :total="flowPageRef.total || 0"
       :total-pages="totalPages"
       :page-numbers="pageNumbers"
       :loading="loading"
+      :money-sort="flowQuery.moneySort"
+      :day-sort="flowQuery.daySort"
       @toggle-select-all="toggleSelectAll"
       @toggle-select-item="toggleSelectItem"
       @edit-item="editItem"
-      @edit-invoice="editInvoice"
       @delete-item="deleteItem"
       @change-page="changePage"
       @change-page-size="changePageSize"
+      @toggle-sort="toggleSort"
     />
 
     <!-- 筛选抽屉 -->
@@ -258,11 +263,6 @@
       @change="readCsvInfo"
     />
 
-    <!-- 自助平账对话框 -->
-    <FlowAutoMergeDialog />
-
-    <!-- 自助去重对话框 -->
-    <FlowAutoDeduplicationDialog />
 
     <!-- 编辑对话框 -->
     <FlowEditDialog
@@ -272,11 +272,6 @@
       :success-callback="doQuery"
     />
 
-    <FlowEditInvoiceDialog
-      v-if="showFlowEditInvoiceDialog"
-      :item="selectedFlow"
-      :success-callback="doQuery"
-    />
   </div>
 </template>
 
@@ -290,15 +285,9 @@ import FlowsStatistics from "@/components/flows/FlowsStatistics.vue";
 import FlowsTable from "@/components/flows/FlowsTable.vue";
 import FlowsSearchDrawer from "@/components/flows/FlowsSearchDrawer.vue";
 import FlowsImportDrawer from "@/components/flows/FlowsImportDrawer.vue";
-import FlowAutoMergeDialog from "~/components/dialog/FlowAutoMergeDialog.vue";
-import FlowAutoDeduplicationDialog from "~/components/dialog/FlowAutoDeduplicationDialog.vue";
 import FlowEditDialog from "~/components/dialog/FlowEditDialog.vue";
-import FlowEditInvoiceDialog from "~/components/dialog/FlowEditInvoiceDialog.vue";
 import {
-  showAutoMergeFlowsDialog,
-  showAutoDeduplicationFlowsDialog,
   showFlowEditDialog,
-  showFlowEditInvoiceDialog,
   showFlowExcelImportDialog,
   showFlowJsonImportDialog,
 } from "~/utils/flag";
@@ -327,6 +316,7 @@ const flowPageRef = ref<any>({
   notInOut: 0,
 });
 const selectedFlows = ref<any[]>([]);
+const isSelectionMode = ref(false);
 const searchDrawer = ref(false);
 const importDrawer = ref(false);
 const showFlowCustomImportDialog = ref(false);
@@ -360,6 +350,8 @@ const flowQuery = ref<any>({
   payType: "",
   minMoney: undefined,
   maxMoney: undefined,
+  moneySort: "",
+  daySort: "",
 });
 
 const batchChange = ref<any>({
@@ -510,18 +502,63 @@ const resetQuery = () => {
     payType: "",
     minMoney: undefined,
     maxMoney: undefined,
+    moneySort: "",
+    daySort: "",
   };
   selectedFlows.value = [];
   doQuery();
 };
 
-// 操作方法
-const toAutoMergeFlows = () => {
-  showAutoMergeFlowsDialog.value = true;
+// 排序切换
+const toggleSort = (field: 'money' | 'day') => {
+  if (field === 'money') {
+    if (!flowQuery.value.moneySort) {
+      flowQuery.value.moneySort = "asc";
+      flowQuery.value.daySort = ""; // 清除其他排序
+    } else if (flowQuery.value.moneySort === "asc") {
+      flowQuery.value.moneySort = "desc";
+    } else {
+      flowQuery.value.moneySort = "";
+    }
+  } else if (field === 'day') {
+    if (!flowQuery.value.daySort) {
+      flowQuery.value.daySort = "asc";
+      flowQuery.value.moneySort = ""; // 清除其他排序
+    } else if (flowQuery.value.daySort === "asc") {
+      flowQuery.value.daySort = "desc";
+    } else {
+      flowQuery.value.daySort = "";
+    }
+  }
+  flowQuery.value.pageNum = 1;
+  doQuery();
 };
 
-const toAutoDeduplicationFlows = () => {
-  showAutoDeduplicationFlowsDialog.value = true;
+// 检测是否有筛选条件
+const hasFilters = computed(() => {
+  return !!(
+    flowQuery.value.startDay ||
+    flowQuery.value.endDay ||
+    flowQuery.value.attribution ||
+    flowQuery.value.name ||
+    flowQuery.value.description ||
+    flowQuery.value.flowType ||
+    flowQuery.value.industryType ||
+    flowQuery.value.payType ||
+    flowQuery.value.minMoney !== undefined ||
+    flowQuery.value.maxMoney !== undefined
+  );
+});
+
+// 操作方法
+const enterSelectionMode = () => {
+  isSelectionMode.value = true;
+  selectedFlows.value = [];
+};
+
+const exitSelectionMode = () => {
+  isSelectionMode.value = false;
+  selectedFlows.value = [];
 };
 
 const openCreateDialog = () => {
@@ -531,7 +568,7 @@ const openCreateDialog = () => {
 };
 
 const deleteItems = () => {
-  if (selectedFlows.value.length <= 0) {
+  if (!isSelectionMode.value || selectedFlows.value.length <= 0) {
     Alert.error("请至少选择一条要删除的流水");
     return;
   }
@@ -548,6 +585,8 @@ const deleteItems = () => {
           Alert.success("删除成功");
           selectedFlows.value = [];
           doQuery();
+          // 删除后退出选择模式
+          exitSelectionMode();
         })
         .catch(() => {
           Alert.error("删除失败");
@@ -557,7 +596,7 @@ const deleteItems = () => {
 };
 
 const toChangeTypeBatch = () => {
-  if (selectedFlows.value.length <= 0) {
+  if (!isSelectionMode.value || selectedFlows.value.length <= 0) {
     Alert.error("请至少选择一条要修改的流水");
     return;
   }
@@ -639,7 +678,10 @@ const confirmBatchChange = () => {
         .then(() => {
           Alert.success("修改成功");
           closeBatchChangeDialog();
+          selectedFlows.value = [];
           doQuery();
+          // 批量修改后退出选择模式
+          exitSelectionMode();
         })
         .catch(() => {
           Alert.error("修改失败");
@@ -890,15 +932,6 @@ const importCsvTemplate = () => {
   csvFileInput.value.click();
 };
 
-// 编辑单个流水
-const editInvoice = (item: any) => {
-  selectedFlow.value = item;
-  showFlowEditInvoiceDialog.value = true;
-};
-
-const closeInvoiceDialog = () => {
-  selectedFlow.value = undefined;
-};
 
 // 初始化数据
 onMounted(() => {

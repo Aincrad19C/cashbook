@@ -14,22 +14,6 @@
           <span class="sm:hidden">导入</span>
         </button>
         <button
-          @click="$emit('autoMerge')"
-          class="flex-1 md:flex-none px-2 py-1 md:px-3 md:py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-sm font-medium"
-        >
-          <AdjustmentsHorizontalIcon class="w-4 h-4" />
-          <span class="hidden sm:inline">自助平账</span>
-          <span class="sm:hidden">平账</span>
-        </button>
-        <button
-          @click="$emit('autoDeduplication')"
-          class="flex-1 md:flex-none px-2 py-1 md:px-3 md:py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-sm font-medium"
-        >
-          <DocumentDuplicateIcon class="w-4 h-4" />
-          <span class="hidden sm:inline">自助去重</span>
-          <span class="sm:hidden">去重</span>
-        </button>
-        <button
           @click="$emit('createNew')"
           class="flex-1 md:flex-none px-2 py-1 md:px-3 md:py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-sm font-medium"
         >
@@ -39,23 +23,53 @@
       </div>
 
       <div class="flex flex-col sm:flex-row gap-2">
-        <!-- 批量操作 - 有选中项时显示 -->
-        <div v-if="selectedCount > 0" class="flex gap-2">
+        <!-- 选择模式按钮 -->
+        <div v-if="!isSelectionMode" class="flex gap-2">
+          <button
+            @click="$emit('enterSelectionMode')"
+            class="flex-1 sm:flex-none px-2 py-1 md:px-3 md:py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-sm font-medium"
+          >
+            <CheckIcon class="w-4 h-4" />
+            选择
+          </button>
+        </div>
+
+        <!-- 批量操作 - 选择模式下显示 -->
+        <div v-if="isSelectionMode" class="flex gap-2">
+          <button
+            @click="$emit('exitSelectionMode')"
+            class="flex-1 sm:flex-none px-2 py-1 md:px-3 md:py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-sm font-medium"
+          >
+            <XMarkIcon class="w-4 h-4" />
+            取消
+          </button>
           <button
             @click="$emit('deleteSelected')"
-            class="flex-1 sm:flex-none px-2 py-1 md:px-3 md:py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-sm font-medium"
+            :disabled="selectedCount === 0"
+            :class="[
+              'flex-1 sm:flex-none px-2 py-1 md:px-3 md:py-2 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-sm font-medium',
+              selectedCount > 0
+                ? 'bg-red-600 hover:bg-red-700 text-white cursor-pointer'
+                : 'bg-gray-400 dark:bg-gray-600 text-gray-200 dark:text-gray-400 cursor-not-allowed opacity-60'
+            ]"
           >
             <TrashIcon class="w-4 h-4" />
-            <span class="hidden sm:inline">删除选中({{ selectedCount }})</span>
-            <span class="sm:hidden">删除({{ selectedCount }})</span>
+            <span class="hidden sm:inline">删除选中{{ selectedCount > 0 ? `(${selectedCount})` : '' }}</span>
+            <span class="sm:hidden">删除{{ selectedCount > 0 ? `(${selectedCount})` : '' }}</span>
           </button>
           <button
             @click="$emit('batchChangeType')"
-            class="flex-1 sm:flex-none px-2 py-1 md:px-3 md:py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-sm font-medium"
+            :disabled="selectedCount === 0"
+            :class="[
+              'flex-1 sm:flex-none px-2 py-1 md:px-3 md:py-2 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-sm font-medium',
+              selectedCount > 0
+                ? 'bg-purple-600 hover:bg-purple-700 text-white cursor-pointer'
+                : 'bg-gray-400 dark:bg-gray-600 text-gray-200 dark:text-gray-400 cursor-not-allowed opacity-60'
+            ]"
           >
             <PencilSquareIcon class="w-4 h-4" />
-            <span class="hidden sm:inline">类型修改({{ selectedCount }})</span>
-            <span class="sm:hidden">修改({{ selectedCount }})</span>
+            <span class="hidden sm:inline">类型修改{{ selectedCount > 0 ? `(${selectedCount})` : '' }}</span>
+            <span class="sm:hidden">修改{{ selectedCount > 0 ? `(${selectedCount})` : '' }}</span>
           </button>
         </div>
 
@@ -63,7 +77,12 @@
         <div class="flex gap-2">
           <button
             @click="$emit('openSearch')"
-            class="flex-1 sm:flex-none px-2 py-1 md:px-3 md:py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-sm font-medium"
+            :class="[
+              'flex-1 sm:flex-none px-2 py-1 md:px-3 md:py-2 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-sm font-medium',
+              hasFilters
+                ? 'bg-orange-600 hover:bg-orange-700 text-white'
+                : 'bg-blue-600 hover:bg-blue-700 text-white'
+            ]"
           >
             <FunnelIcon class="w-4 h-4" />
             筛选
@@ -84,26 +103,28 @@
 <script setup lang="ts">
 import {
   CloudArrowDownIcon,
-  AdjustmentsHorizontalIcon,
-  DocumentDuplicateIcon,
   PlusIcon,
   FunnelIcon,
   ArrowPathIcon,
   TrashIcon,
   PencilSquareIcon,
+  CheckIcon,
+  XMarkIcon,
 } from "@heroicons/vue/24/outline";
 
 interface Props {
   selectedCount: number;
+  isSelectionMode: boolean;
+  hasFilters?: boolean;
 }
 
 defineProps<Props>();
 
 defineEmits<{
   openImportExport: [];
-  autoMerge: [];
-  autoDeduplication: [];
   createNew: [];
+  enterSelectionMode: [];
+  exitSelectionMode: [];
   deleteSelected: [];
   batchChangeType: [];
   openSearch: [];

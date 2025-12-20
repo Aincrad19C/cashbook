@@ -207,6 +207,20 @@
           </p>
         </div>
 
+        <!-- 名称 -->
+        <div>
+          <label
+            class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1"
+          >
+            名称
+          </label>
+          <input
+            v-model="flowEdit.name"
+            type="text"
+            placeholder="请输入名称"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
 
         <!-- 备注 -->
         <div>
@@ -588,6 +602,7 @@ const createOne = () => {
       industryType: flowEdit.value.industryType,
       payType: flowEdit.value.payType,
       money: Number(flowEdit.value.money),
+      name: flowEdit.value.name || "",
       description: flowEdit.value.description,
     })
     .then((res) => {
@@ -617,6 +632,7 @@ const updateOne = () => {
       industryType: flowEdit.value.industryType,
       money: Number(flowEdit.value.money),
       payType: flowEdit.value.payType,
+      name: flowEdit.value.name || "",
       description: flowEdit.value.description,
     })
     .then((res) => {
