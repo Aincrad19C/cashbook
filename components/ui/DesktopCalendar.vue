@@ -13,9 +13,77 @@
           <ChevronLeftIcon class="w-5 h-5" />
         </button>
 
-        <h2 class="text-xl font-bold min-w-40 text-center">
-          {{ currentMonthText }}
-        </h2>
+        <div class="relative">
+          <button
+            @click="showMonthPicker = !showMonthPicker"
+            class="text-xl font-bold min-w-40 text-center px-3 py-1 rounded-lg hover:bg-white/10 transition-colors duration-200 cursor-pointer"
+          >
+            {{ currentMonthText }}
+          </button>
+          <!-- Month/Year Picker Popup -->
+          <div
+            v-if="showMonthPicker"
+            class="absolute top-full left-0 mt-2 z-50 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg p-4 min-w-64"
+            @click.stop
+          >
+            <!-- Year Selection -->
+            <div class="mb-4">
+              <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">年份</label>
+              <div class="flex items-center gap-2">
+                <button
+                  @click="selectYear(currentYear - 1)"
+                  class="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <ChevronLeftIcon class="w-4 h-4" />
+                </button>
+                <select
+                  v-model="selectedYear"
+                  @change="onYearMonthChange"
+                  class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                >
+                  <option
+                    v-for="year in yearOptions"
+                    :key="year"
+                    :value="year"
+                  >
+                    {{ year }}
+                  </option>
+                </select>
+                <button
+                  @click="selectYear(currentYear + 1)"
+                  class="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <ChevronRightIcon class="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            <!-- Month Selection -->
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">月份</label>
+              <div class="grid grid-cols-3 gap-2">
+                <button
+                  v-for="month in 12"
+                  :key="month"
+                  @click="selectMonth(month)"
+                  :class="[
+                    'px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                    selectedMonth === month
+                      ? 'bg-green-500 text-white'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  ]"
+                >
+                  {{ month }}月
+                </button>
+              </div>
+            </div>
+          </div>
+          <!-- Backdrop -->
+          <div
+            v-if="showMonthPicker"
+            class="fixed inset-0 z-40"
+            @click="showMonthPicker = false"
+          ></div>
+        </div>
 
         <button
           @click="nextMonth"
@@ -68,13 +136,18 @@
         <!-- Date and Add Button -->
         <div class="flex justify-between items-start mb-3">
           <span
+            v-if="!date.isToday"
             class="text-lg font-medium"
             :class="{
-              'text-green-600 dark:text-green-500/60 font-bold': date.isToday,
-              'text-gray-900 dark:text-gray-100':
-                date.isCurrentMonth && !date.isToday,
+              'text-gray-900 dark:text-gray-100': date.isCurrentMonth,
               'text-gray-400 dark:text-green-700/30': !date.isCurrentMonth,
             }"
+          >
+            {{ date.day }}
+          </span>
+          <span
+            v-else
+            class="w-8 h-8 rounded-full bg-green-500 dark:bg-green-600 text-white flex items-center justify-center text-lg font-bold shadow-md"
           >
             {{ date.day }}
           </span>
@@ -96,16 +169,16 @@
             class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
             :class="getExpenseClass(getDateExpense(date.dateString))"
           >
-            <ArrowUpIcon class="w-4 h-4" />
+            <span class="text-lg font-bold">-</span>
             <span>{{ getDateExpense(date.dateString).toFixed(2) }}</span>
           </div>
           <!-- Income -->
           <div
             v-if="getDateIncome(date.dateString)"
             @click="clickDay(date.dateString, '收入')"
-            class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md bg-green-100 dark:bg-transparent dark:border dark:border-green-800/40 text-green-700 dark:text-green-500/60 hover:bg-green-200 dark:hover:bg-green-950/20"
+            class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md bg-blue-300/70 dark:bg-blue-500/50 text-blue-900 dark:text-blue-100 hover:bg-blue-400/80 dark:hover:bg-blue-500/60"
           >
-            <ArrowDownIcon class="w-4 h-4" />
+            <span class="text-lg font-bold">+</span>
             <span>{{ getDateIncome(date.dateString).toFixed(2) }}</span>
           </div>
         </div>
@@ -115,13 +188,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
   PlusIcon,
-  ArrowDownIcon,
-  ArrowUpIcon,
   ChartBarIcon,
 } from "@heroicons/vue/24/outline";
 
@@ -151,8 +222,54 @@ const emit = defineEmits<{
 }>();
 
 const currentDate = ref(new Date(props.currentDate));
+const showMonthPicker = ref(false);
 
 const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
+
+// 月份/年份选择器相关
+const currentYear = computed(() => currentDate.value.getFullYear());
+const currentMonth = computed(() => currentDate.value.getMonth() + 1);
+const selectedYear = ref(currentYear.value);
+const selectedMonth = ref(currentMonth.value);
+
+// 生成年份选项（当前年份前后各10年）
+const yearOptions = computed(() => {
+  const years = [];
+  const startYear = currentYear.value - 10;
+  const endYear = currentYear.value + 10;
+  for (let year = startYear; year <= endYear; year++) {
+    years.push(year);
+  }
+  return years;
+});
+
+// 监听当前日期变化，更新选择器
+watch(
+  () => [currentYear.value, currentMonth.value],
+  () => {
+    selectedYear.value = currentYear.value;
+    selectedMonth.value = currentMonth.value;
+  },
+  { immediate: true }
+);
+
+const selectYear = (year: number) => {
+  selectedYear.value = year;
+  onYearMonthChange();
+};
+
+const selectMonth = (month: number) => {
+  selectedMonth.value = month;
+  currentDate.value = new Date(selectedYear.value, month - 1, 1);
+  emit("month-change", currentDate.value);
+  showMonthPicker.value = false;
+};
+
+const onYearMonthChange = () => {
+  currentDate.value = new Date(selectedYear.value, selectedMonth.value - 1, 1);
+  emit("month-change", currentDate.value);
+  showMonthPicker.value = false;
+};
 
 const currentMonthText = computed(() => {
   const year = currentDate.value.getFullYear();
@@ -220,11 +337,9 @@ const getExpenseClass = (amount: number): string => {
   if (!amount || amount === 0) {
     return "bg-green-100/50 dark:bg-transparent dark:border dark:border-green-800/30 text-gray-600 dark:text-green-500/50 hover:bg-green-100 dark:hover:bg-green-950/15";
   } else if (amount >= 1000) {
-    return "bg-red-500 dark:bg-red-950/50 dark:border dark:border-red-900/40 text-white hover:bg-red-600 dark:hover:bg-red-950/60 shadow-lg";
-  } else if (amount >= 500) {
-    return "bg-orange-500 dark:bg-orange-950/50 dark:border dark:border-orange-900/40 text-white hover:bg-orange-600 dark:hover:bg-orange-950/60 shadow-lg";
+    return "bg-red-300/70 dark:bg-red-500/50 text-red-900 dark:text-red-100 hover:bg-red-400/80 dark:hover:bg-red-500/60";
   } else {
-    return "bg-yellow-500 dark:bg-yellow-950/50 dark:border dark:border-yellow-900/40 text-white hover:bg-yellow-600 dark:hover:bg-yellow-950/60 shadow-lg";
+    return "bg-orange-300/70 dark:bg-orange-500/50 text-orange-900 dark:text-orange-100 hover:bg-orange-400/80 dark:hover:bg-orange-500/60";
   }
 };
 
@@ -265,4 +380,20 @@ watch(
     currentDate.value = new Date(newDate);
   }
 );
+
+// 点击外部关闭月份选择器
+const handleClickOutside = (event: Event) => {
+  const target = event.target as HTMLElement;
+  if (!target.closest('.relative')) {
+    showMonthPicker.value = false;
+  }
+};
+
+onMounted(() => {
+  document.addEventListener("click", handleClickOutside);
+});
+
+onUnmounted(() => {
+  document.removeEventListener("click", handleClickOutside);
+});
 </script>
