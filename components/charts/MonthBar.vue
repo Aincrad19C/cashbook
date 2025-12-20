@@ -1,42 +1,14 @@
 <template>
-  <div class="chart-common-container">
+  <div class="">
     <div
-      v-if="title || years.length > 0"
-      class="relative w-full border-b border-gray-200 dark:border-gray-700 mb-2 h-12 md:mb-4"
+      class="w-full border-b border-gray-200 dark:border-gray-700 md:h-12 mb-4"
     >
-      <h4
-        v-if="title"
-        class="md:text-center text-lg font-semibold text-green-950 dark:text-white my-2"
-      >
-        {{ title }}
-      </h4>
-
-      <div
-        v-if="years.length > 0 || attributions.length > 0"
-        class="flex gap-2 absolute right-0 top-0"
-      >
-        <select
-          v-if="attributions.length > 0"
-          v-model="filterAttribution"
-          @change="filterAttributionChange"
-          class="min-w-20 md:min-w-32 px-2 py-1 md:px-3 md:py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-md bg-white dark:bg-gray-700 text-green-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+      <div v-if="title">
+        <h4
+          class="text-lg text-center font-semibold text-green-950 dark:text-white my-2"
         >
-          <option value="">全部归属</option>
-          <option v-for="attr in attributions" :key="attr" :value="attr">
-            {{ attr }}
-          </option>
-        </select>
-        <select
-          v-if="years.length > 0"
-          v-model="filterYear"
-          @change="filterYearChange"
-          class="min-w-24 md:min-w-32 px-2 py-1 md:px-3 md:py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-md bg-white dark:bg-gray-700 text-green-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        >
-          <option value="">全部年份</option>
-          <option v-for="year in years" :key="year.value" :value="year.value">
-            {{ year.title }}
-          </option>
-        </select>
+          {{ title }}
+        </h4>
       </div>
     </div>
     <div v-show="noData" :style="`width: ${width}; height: ${height};`">
@@ -48,6 +20,38 @@
       class="chart-content"
       :style="`width: ${width}; height: ${height};`"
     ></div>
+    <!-- 翻页控制 - 放在图表下方，与折线图拖动条对齐 -->
+    <div
+      v-if="allData.length > 0 && totalPages > 1"
+      class="flex items-center justify-center gap-2 h-8 -mt-12 relative z-10"
+    >
+      <!-- 左箭头 -->
+      <button
+        @click="goToPreviousPage"
+        :disabled="currentPageIndex === 0"
+        class="relative z-20 p-1.5 md:p-2 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-gray-800 text-green-950 dark:text-white transition-colors"
+        title="上一页"
+      >
+        <ChevronLeftIcon class="w-4 h-4 md:w-5 md:h-5" />
+      </button>
+
+      <!-- 当前时间范围显示 -->
+      <span
+        class="relative z-20 text-xs md:text-sm text-gray-600 dark:text-gray-400 px-2 py-1"
+      >
+        {{ currentPageRange }}
+      </span>
+
+      <!-- 右箭头 -->
+      <button
+        @click="goToNextPage"
+        :disabled="currentPageIndex >= totalPages - 1"
+        class="relative z-20 p-1.5 md:p-2 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-gray-800 text-green-950 dark:text-white transition-colors"
+        title="下一页"
+      >
+        <ChevronRightIcon class="w-4 h-4 md:w-5 md:h-5" />
+      </button>
+    </div>
   </div>
 
   <!-- 流水表格对话框 -->
@@ -82,8 +86,9 @@
 
 <script setup lang="ts">
 import * as echarts from "echarts";
-import { onMounted, ref } from "vue";
-import type { CommonChartData, CommonSelectOption } from "~/utils/model";
+import { onMounted, ref, computed } from "vue";
+import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/vue/24/outline";
+import type { CommonChartData } from "~/utils/model";
 
 // 使用 props 来接收外部传入的参数
 const { title, width, height } = defineProps(["title", "width", "height"]);
@@ -97,33 +102,68 @@ const notInOut: any[] = [];
 const xAxisList: any[] = [];
 const noData = ref(false);
 
-const years = ref<CommonSelectOption[]>([]);
 const allData = ref<CommonChartData[]>([]);
-const filterYear = ref("");
-const attributions = ref<string[]>([]);
-const filterAttribution = ref("");
-const filterAttributionChange = () => {
-  // 切换归属时重新查询数据
-  doQuery();
+const MONTHS_PER_PAGE = 6; // 每页显示6个月（半年）
+const currentPageIndex = ref(0);
+
+// 计算总页数
+const totalPages = computed(() => {
+  if (allData.value.length === 0) return 0;
+  return Math.ceil(allData.value.length / MONTHS_PER_PAGE);
+});
+
+// 计算当前页面的时间范围显示
+const currentPageRange = computed(() => {
+  if (allData.value.length === 0) return "";
+  const startIndex = currentPageIndex.value * MONTHS_PER_PAGE;
+  const endIndex = Math.min(
+    startIndex + MONTHS_PER_PAGE - 1,
+    allData.value.length - 1
+  );
+  const startMonth = allData.value[startIndex]?.type || "";
+  const endMonth = allData.value[endIndex]?.type || "";
+  if (startMonth && endMonth) {
+    return `${startMonth} 至 ${endMonth}`;
+  }
+  return "";
+});
+
+// 翻页功能
+const goToPreviousPage = () => {
+  if (currentPageIndex.value > 0) {
+    currentPageIndex.value--;
+    updateChartData();
+  }
 };
-const filterYearChange = () => {
+
+const goToNextPage = () => {
+  if (currentPageIndex.value < totalPages.value - 1) {
+    currentPageIndex.value++;
+    updateChartData();
+  }
+};
+
+// 更新图表数据（只显示当前页的6个月）
+const updateChartData = () => {
+  // 确保图表已初始化
+  if (!chart) {
+    return;
+  }
+
   dataListOut.length = 0;
   dataListIn.length = 0;
   notInOut.length = 0;
   xAxisList.length = 0;
 
-  let data = [];
-  // console.log("filterYear.value:", filterYear.value);
-  // console.log("allData.value", allData.value);
-  if (filterYear.value) {
-    data = allData.value.filter((d) => {
-      return d.type.startsWith(filterYear.value);
-    });
-  } else {
-    data = allData.value;
-  }
+  const startIndex = currentPageIndex.value * MONTHS_PER_PAGE;
+  const endIndex = Math.min(
+    startIndex + MONTHS_PER_PAGE,
+    allData.value.length
+  );
 
-  data.forEach((data) => {
+  const currentPageData = allData.value.slice(startIndex, endIndex);
+
+  currentPageData.forEach((data) => {
     xAxisList.push(data.type);
     dataListOut.push(Number(data.outSum).toFixed(2));
     dataListIn.push(Number(data.inSum).toFixed(2));
@@ -135,7 +175,7 @@ const filterYearChange = () => {
   optionRef.value.series[2].data = notInOut;
   optionRef.value.xAxis.data = xAxisList;
 
-  chart.setOption(optionRef.value);
+  chart.setOption(optionRef.value, { notMerge: true });
 };
 
 const optionRef = ref({
@@ -241,80 +281,30 @@ let chart: echarts.ECharts;
 const query = ref<FlowQuery>({ pageNum: 1, pageSize: 20 });
 const showFlowTable = ref(false);
 
-const getAttributions = async () => {
-  try {
-    const res = await doApi.post<string[]>("api/entry/flow/getAttributions", {
-      bookId: localStorage.getItem("bookId"),
-    });
-    attributions.value = res || [];
-  } catch (error) {
-    console.error("获取归属列表失败:", error);
-    attributions.value = [];
-  }
-};
-
 const doQuery = () => {
   const queryParams: any = {
     bookId: localStorage.getItem("bookId"),
   };
-  if (filterAttribution.value) {
-    queryParams.attribution = filterAttribution.value;
-  }
   doApi
     .post<CommonChartData[]>("api/entry/analytics/month", queryParams)
     .then((res) => {
       if (res) {
         if (res.length === 0) {
           allData.value = [];
-          // console.log("MonthBar未查询到数据！");
           noData.value = true;
           return;
         }
-        // 重置所有数据数组
-        years.value = [];
-        allData.value = res;
-        dataListOut.length = 0;
-        dataListIn.length = 0;
-        notInOut.length = 0;
-        xAxisList.length = 0;
-
-        const monthYears: string[] = [];
-
-        // 根据年份过滤条件决定使用哪些数据
-        let dataToProcess = res;
-        if (filterYear.value) {
-          dataToProcess = res.filter((d) => {
-            return d.type.startsWith(filterYear.value);
-          });
-        }
-
-        // 填充数据
-        dataToProcess.forEach((data) => {
-          monthYears.push(data.type.split("-")[0]);
-          xAxisList.push(data.type);
-          dataListOut.push(Number(data.outSum).toFixed(2));
-          dataListIn.push(Number(data.inSum).toFixed(2));
-          notInOut.push(Number(data.zeroSum).toFixed(2));
+        // 按时间排序（从旧到新）
+        allData.value = res.sort((a, b) => {
+          return a.type.localeCompare(b.type);
         });
+        noData.value = false;
 
-        // 去重年份列表（基于全部数据，而不是过滤后的数据）
-        const allMonthYears: string[] = [];
-        res.forEach((data) => {
-          allMonthYears.push(data.type.split("-")[0]);
-        });
-        const uniqueYears = Array.from(new Set(allMonthYears));
-        uniqueYears.forEach((year) => {
-          years.value.push({ title: year, value: year });
-        });
+        // 重置到第一页
+        currentPageIndex.value = 0;
 
-        // 更新图表配置
-        optionRef.value.series[0].data = dataListOut;
-        optionRef.value.series[1].data = dataListIn;
-        optionRef.value.series[2].data = notInOut;
-        optionRef.value.xAxis.data = xAxisList;
-
-        // 使用 notMerge: true 完全替换图表数据，而不是合并
-        chart.setOption(optionRef.value, { notMerge: true });
+        // 更新图表数据
+        updateChartData();
       }
     });
 };
@@ -341,12 +331,8 @@ onMounted(() => {
   chart.on("click", function (param) {
     query.value.startDay = param.name + "-01";
     query.value.endDay = param.name + "-31";
-    if (filterAttribution.value) {
-      query.value.attribution = filterAttribution.value;
-    }
     showFlowTable.value = true;
   });
-  getAttributions();
   doQuery();
 });
 </script>
