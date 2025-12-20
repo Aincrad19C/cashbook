@@ -32,6 +32,7 @@
   "devDependencies": {
     "@types/jsonwebtoken": "9.0.9",
     "@types/swagger-jsdoc": "6.0.4",
+    "prisma": "6.19.1",
     "swagger-jsdoc": "6.2.8",
     "swagger-ui-express": "5.0.1"
   }
