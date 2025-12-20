@@ -93,14 +93,35 @@
         </button>
       </div>
 
-      <!-- Analysis Button -->
-      <button
-        @click="showAnalysis"
-        class="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors duration-200 font-medium"
-      >
-        <ChartBarIcon class="w-5 h-5" />
-        当月分析
-      </button>
+      <!-- Budget and Analysis Buttons -->
+      <div class="flex items-center gap-3">
+        <!-- Budget Remaining -->
+        <div class="relative">
+          <button
+            @click="openBudgetDialog"
+            class="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors duration-200 font-medium"
+          >
+            <span>本月预算剩余 {{ budgetRemainingPercent }}%</span>
+            <ChevronRightIcon class="w-4 h-4" />
+          </button>
+          <!-- Budget Detail Dialog -->
+          <BudgetDetailDialog
+            ref="budgetDialogRef"
+            :current-month="currentMonthString"
+            :budget-data="budgetData"
+            @close="closeBudgetDialog"
+            @update="loadBudgetData"
+          />
+        </div>
+        <!-- Analysis Button -->
+        <button
+          @click="showAnalysis"
+          class="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors duration-200 font-medium"
+        >
+          <ChartBarIcon class="w-5 h-5" />
+          当月分析
+        </button>
+      </div>
     </div>
 
     <!-- Weekday Headers -->
@@ -195,6 +216,8 @@ import {
   PlusIcon,
   ChartBarIcon,
 } from "@heroicons/vue/24/outline";
+import BudgetDetailDialog from "~/components/dialog/BudgetDetailDialog.vue";
+import type { Budget } from "~/utils/table";
 
 interface CalendarDate {
   date: Date;
@@ -223,8 +246,91 @@ const emit = defineEmits<{
 
 const currentDate = ref(new Date(props.currentDate));
 const showMonthPicker = ref(false);
+const budgetDialogRef = ref<{ open: () => void; close: () => void } | null>(null);
+const budgetData = ref<Budget | null>(null);
+
+// 打开预算对话框
+const openBudgetDialog = () => {
+  if (budgetDialogRef.value) {
+    budgetDialogRef.value.open();
+  }
+};
+
+// 关闭预算对话框
+const closeBudgetDialog = () => {
+  if (budgetDialogRef.value) {
+    budgetDialogRef.value.close();
+  }
+};
 
 const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
+
+// 当前月份字符串（用于显示和API调用）
+const currentMonthString = computed(() => {
+  const year = currentDate.value.getFullYear();
+  const month = currentDate.value.getMonth() + 1;
+  return `${year} 年 ${month} 月`;
+});
+
+// 计算预算剩余百分比
+const budgetRemainingPercent = computed(() => {
+  if (!budgetData.value || !budgetData.value.budget || budgetData.value.budget <= 0) {
+    return 100;
+  }
+  const used = budgetData.value.used || 0;
+  const remaining = budgetData.value.budget - used;
+  const percent = (remaining / budgetData.value.budget) * 100;
+  return Math.max(0, Math.round(percent));
+});
+
+// 加载预算数据
+const loadBudgetData = async () => {
+  const bookId = localStorage.getItem("bookId");
+  if (!bookId) return;
+
+  // 格式化月份：YYYY-MM
+  const year = currentDate.value.getFullYear();
+  const month = String(currentDate.value.getMonth() + 1).padStart(2, "0");
+  const monthStr = `${year}-${month}`;
+
+  try {
+    const budgets = await doApi.post<Budget[]>("api/entry/budget/list", {
+      bookId,
+      month: monthStr,
+    });
+    
+    if (budgets && budgets.length > 0) {
+      budgetData.value = budgets[0];
+      // 如果 used 为空，需要计算当前月份的支出
+      if (budgetData.value.used === null || budgetData.value.used === undefined) {
+        await calculateUsedAmount(monthStr);
+      }
+    } else {
+      budgetData.value = null;
+    }
+  } catch (error) {
+    console.error("加载预算数据失败:", error);
+    budgetData.value = null;
+  }
+};
+
+// 计算已使用金额（当前月份的支出总额）
+const calculateUsedAmount = async (monthStr: string) => {
+  const bookId = localStorage.getItem("bookId");
+  if (!bookId || !budgetData.value) return;
+
+  try {
+    // 使用 reloadUsedAmount API 更新预算的 used 字段
+    await doApi.post("api/entry/budget/reloadUsedAmount", {
+      bookId,
+      month: monthStr,
+    });
+    // 重新加载预算数据
+    await loadBudgetData();
+  } catch (error) {
+    console.error("计算已使用金额失败:", error);
+  }
+};
 
 // 月份/年份选择器相关
 const currentYear = computed(() => currentDate.value.getFullYear());
@@ -378,8 +484,22 @@ watch(
   () => props.currentDate,
   (newDate) => {
     currentDate.value = new Date(newDate);
+    loadBudgetData();
   }
 );
+
+// 监听月份变化，重新加载预算
+watch(
+  () => [currentYear.value, currentMonth.value],
+  () => {
+    loadBudgetData();
+  }
+);
+
+// 组件挂载时加载预算数据
+onMounted(() => {
+  loadBudgetData();
+});
 
 // 点击外部关闭月份选择器
 const handleClickOutside = (event: Event) => {
