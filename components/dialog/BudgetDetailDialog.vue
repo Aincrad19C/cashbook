@@ -132,11 +132,13 @@ import { Alert } from "~/utils/alert";
 interface Props {
   currentMonth: string;
   budgetData?: Budget | null;
+  currentMonthExpense?: number; // 当前月份的实时支出总额
 }
 
 const props = withDefaults(defineProps<Props>(), {
   currentMonth: "",
   budgetData: null,
+  currentMonthExpense: 0,
 });
 
 const emit = defineEmits<{
@@ -146,8 +148,12 @@ const emit = defineEmits<{
 
 const show = ref(false);
 const budgetAmount = ref<string>("");
-const usedAmount = ref<number>(0);
 const errors = ref<{ budget?: string }>({});
+
+// 使用传入的实时支出数据，如果没有则使用 budgetData 中的 used
+const usedAmount = computed(() => {
+  return props.currentMonthExpense || props.budgetData?.used || 0;
+});
 
 // 计算剩余金额
 const remainingAmount = computed(() => {
@@ -202,10 +208,8 @@ watch(
   (newData) => {
     if (newData) {
       budgetAmount.value = String(newData.budget || 0);
-      usedAmount.value = newData.used || 0;
     } else {
       budgetAmount.value = "0";
-      usedAmount.value = 0;
     }
   },
   { immediate: true }
@@ -216,10 +220,8 @@ watch(show, (newShow) => {
   if (newShow) {
     if (props.budgetData) {
       budgetAmount.value = String(props.budgetData.budget || 0);
-      usedAmount.value = props.budgetData.used || 0;
     } else {
       budgetAmount.value = "0";
-      usedAmount.value = 0;
     }
   }
 });

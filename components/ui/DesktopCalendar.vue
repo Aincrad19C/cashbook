@@ -109,6 +109,7 @@
             ref="budgetDialogRef"
             :current-month="currentMonthString"
             :budget-data="budgetData"
+            :current-month-expense="currentMonthExpense"
             @close="closeBudgetDialog"
             @update="loadBudgetData"
           />
@@ -272,12 +273,27 @@ const currentMonthString = computed(() => {
   return `${year} 年 ${month} 月`;
 });
 
-// 计算预算剩余百分比
+// 计算当前月份的总支出（实时从 props.expenseData 计算）
+const currentMonthExpense = computed(() => {
+  const year = currentDate.value.getFullYear();
+  const month = String(currentDate.value.getMonth() + 1).padStart(2, "0");
+  const monthPrefix = `${year}-${month}`;
+  
+  let total = 0;
+  for (const [date, amount] of Object.entries(props.expenseData)) {
+    if (date.startsWith(monthPrefix)) {
+      total += amount;
+    }
+  }
+  return total;
+});
+
+// 计算预算剩余百分比（使用实时支出数据）
 const budgetRemainingPercent = computed(() => {
   if (!budgetData.value || !budgetData.value.budget || budgetData.value.budget <= 0) {
     return 100;
   }
-  const used = budgetData.value.used || 0;
+  const used = currentMonthExpense.value; // 使用实时计算的支出
   const remaining = budgetData.value.budget - used;
   const percent = (remaining / budgetData.value.budget) * 100;
   return Math.max(0, Math.round(percent));
