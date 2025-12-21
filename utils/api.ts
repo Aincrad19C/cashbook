@@ -70,6 +70,12 @@ const intercepterResponse = <T>(res: Result<T>): T => {
         query: { callbackUrl: route.fullPath },
       });
     }
+    // 对于"请先选择账本"错误，不显示错误弹窗，因为系统会自动创建账本
+    // 这个错误通常发生在首次登录时，bookId 还未设置完成
+    if (res.m && res.m.includes("请先选择账本")) {
+      // 静默处理，不显示错误弹窗
+      throw Error(res.m);
+    }
     Alert.error(res.m);
     throw Error(res.m);
   }

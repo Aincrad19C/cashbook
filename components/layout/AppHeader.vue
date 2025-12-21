@@ -7,7 +7,6 @@ import {
 import { GlobalUserInfo } from "~/utils/store";
 
 interface Props {
-  bookName: string;
   isMobile: boolean;
   onToggleSidebar: () => void;
   onLogout: () => void;
@@ -23,7 +22,6 @@ const emit = defineEmits<{
   openAdmin: [];
   openConvertDialog: [];
   openChangePasswordDialog: [];
-  showBookDialog: [];
 }>();
 
 const showUserMenu = ref(false);
@@ -55,22 +53,8 @@ const showUserMenu = ref(false);
           </div>
         </div>
 
-        <!-- Center - Book info (desktop only) -->
+        <!-- Center - Empty space for balance -->
         <div class="flex items-center flex-1 justify-center">
-          <div class="flex items-center space-x-2 md:space-x-4">
-            <span
-              v-if="bookName"
-              class="flex text-gray-700 dark:text-gray-200 font-medium"
-            >
-              <span class="hidden md:block">当前账本：</span>{{ bookName }}
-            </span>
-            <button
-              @click="emit('showBookDialog')"
-              class="px-2 py-1 md:px-4 md:py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-md transition-colors text-xs font-medium"
-            >
-              切换账本
-            </button>
-          </div>
         </div>
 
         <!-- User menu -->

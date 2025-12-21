@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import {
   showSetConvertDialog,
-  showBookDialogFlag,
   showChangePasswordDialog,
 } from "~/utils/flag";
 import { SystemConfig, GlobalUserInfo } from "~/utils/store";
 import { getUserInfo, doApi } from "~/utils/api";
+import type { Book } from "~/utils/table";
 
 // Responsive state
 const isMobile = ref(false);
@@ -16,8 +16,7 @@ const sidebarOpen = ref(false);
 // Loading state for page transitions
 const pageLoading = ref(false);
 
-// User and book state
-const bookName = ref("");
+// User state
 const route = useRoute();
 const openMenu = computed(() => route.path.slice(1) || "calendar");
 
@@ -45,22 +44,33 @@ const updateResponsive = () => {
   }
 };
 
-onMounted(() => {
+onMounted(async () => {
   // Initialize responsive
   if (typeof window !== "undefined") {
     updateResponsive();
     window.addEventListener("resize", updateResponsive);
   }
 
-  // Set up book and user info
-  bookName.value = localStorage.getItem("bookName") || "";
-  if (!bookName.value) {
-    showBookDialogFlag.value.visible = true;
-  }
-
   // 只有当 GlobalUserInfo 不存在时才调用 getUserInfo
   if (!GlobalUserInfo.value) {
     getUserInfo();
+  }
+
+  // 自动获取用户的唯一账本并设置到 localStorage
+  // 如果用户没有账本，API 会自动创建一个默认账本
+  // 使用 await 确保在页面组件加载之前 bookId 已经设置好
+  if (!localStorage.getItem("bookId")) {
+    try {
+      const books = await doApi.post<Book[]>("api/entry/book/list", {});
+      if (books && books.length > 0) {
+        // 用户只有一个账本（默认账本），直接使用第一个
+        const book = books[0];
+        localStorage.setItem("bookId", book.bookId);
+        localStorage.setItem("bookName", book.bookName);
+      }
+    } catch (err) {
+      console.error("获取账本失败:", err);
+    }
   }
 
   // Check for version updates
@@ -156,14 +166,12 @@ const checkVersion = () => {
   <div class="h-screen p-0 m-0 overflow-hidden">
     <!-- Header -->
     <LayoutAppHeader
-      :book-name="bookName"
       :is-mobile="isMobile"
       @toggle-sidebar="sidebarOpen = !sidebarOpen"
       @logout="logout"
       @open-admin="openAdmin"
       @open-convert-dialog="openConvertDialog"
       @open-change-password-dialog="openChangePasswordDialog"
-      @show-book-dialog="showBookDialogFlag.visible = true"
     />
 
     <div
@@ -235,7 +243,6 @@ const checkVersion = () => {
     <GlobalConfirm />
 
     <!-- Dialogs -->
-    <DialogBookDialog v-if="showBookDialogFlag.visible" />
     <DialogSetConvertDialog v-if="showSetConvertDialog" />
     <DialogChangePasswordDialog v-if="showChangePasswordDialog" />
   </div>

@@ -2,13 +2,7 @@
 import {
   CalendarDaysIcon,
   ChartBarIcon,
-  ExclamationTriangleIcon,
-  BanknotesIcon,
   CurrencyDollarIcon,
-  BookOpenIcon,
-  Squares2X2Icon,
-  DocumentTextIcon,
-  CodeBracketIcon,
   SunIcon,
   MoonIcon,
   XMarkIcon,
@@ -56,53 +50,9 @@ const items: Menu[] = [
     icon: CurrencyDollarIcon,
     color: "text-green-500",
   },
-  {
-    title: "待收款",
-    path: "receivable",
-    icon: BanknotesIcon,
-    color: "text-green-500",
-  },
-  {
-    title: "预算管理",
-    path: "budget",
-    icon: ExclamationTriangleIcon,
-    color: "text-red-500",
-  },
-  {
-    title: "账本管理",
-    path: "books",
-    icon: BookOpenIcon,
-    color: "text-teal-500",
-  },
-  {
-    title: "类型管理",
-    path: "types",
-    icon: Squares2X2Icon,
-    color: "text-pink-500",
-  },
-  {
-    title: "文档站",
-    path: "documentation",
-    icon: DocumentTextIcon,
-    color: "text-indigo-500",
-  },
-  {
-    title: "Github",
-    path: "github",
-    icon: CodeBracketIcon,
-    color: "text-gray-600 dark:text-gray-400",
-  },
 ];
 
 const handleNavigate = (menu: Menu) => {
-  if (menu.path === "github") {
-    window.open("https://github.com/dingdangdog/cashbook", "_blank");
-    return;
-  } else if (menu.path === "documentation") {
-    // 打开文档站，可以根据需要修改为实际的文档URL
-    window.open("https://doc.cashbook.oldmoon.top", "_blank");
-    return;
-  }
   emit("navigate", menu.path || "calendar");
   // navigateTo({ path: `/${menu.path}` });
   if (props.isMobile) {

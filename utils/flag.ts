@@ -1,9 +1,5 @@
 import { ref } from "vue";
 
-export const showBookDialogFlag = ref({
-  visible: false,
-});
-
 export const showFlowExcelImportDialog = ref(false);
 // 流水Json导入弹出框
 export const showFlowJsonImportDialog = ref(false);
