@@ -3,6 +3,7 @@ import {
   CalendarDaysIcon,
   ChartBarIcon,
   CurrencyDollarIcon,
+  QuestionMarkCircleIcon,
 } from "@heroicons/vue/24/outline";
 
 interface NavItem {
@@ -40,6 +41,12 @@ const bottomNavItems: NavItem[] = [
     icon: CurrencyDollarIcon,
     color: "text-green-500",
   },
+  {
+    title: "帮助",
+    path: "help",
+    icon: QuestionMarkCircleIcon,
+    color: "text-blue-500",
+  },
 ];
 
 const handleNavigate = (path: string) => {
@@ -52,7 +59,7 @@ const handleNavigate = (path: string) => {
   <nav
     class="fixed bottom-0 left-0 right-0 bg-white dark:bg-black border-t border-green-100 dark:border-green-900 z-40 lg:hidden"
   >
-    <div class="grid grid-cols-3 h-16 bg-green-100 dark:bg-green-950/30">
+    <div class="grid grid-cols-4 h-16 bg-green-100 dark:bg-green-950/30">
       <button
         v-for="item in bottomNavItems"
         :key="item.path"

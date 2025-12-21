@@ -427,6 +427,19 @@ const showMonthAnalysis = (month: string) => {
 };
 
 const initQuery = () => {
+  // 检查 bookId 是否存在
+  const bookId = localStorage.getItem("bookId");
+  if (!bookId) {
+    console.warn("bookId 不存在，延迟加载数据");
+    // 延迟重试
+    setTimeout(() => {
+      if (localStorage.getItem("bookId")) {
+        initQuery();
+      }
+    }, 500);
+    return;
+  }
+
   inMonthCount.value = {};
   inDayCount.value = {};
   outMonthCount.value = {};
@@ -451,6 +464,8 @@ const initQuery = () => {
       const inCount = inMonthCount.value[month] || 0;
       inMonthCount.value[month] = inCount + Number(data.inSum);
     });
+  }).catch((err) => {
+    console.error("加载日历数据失败:", err);
   });
 };
 
@@ -466,10 +481,38 @@ const updateResponsive = () => {
   }
 };
 
-onMounted(() => {
+// 等待 bookId 设置完成后再加载数据
+const waitForBookId = (maxRetries = 10, delay = 200): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    let retries = 0;
+    const checkBookId = () => {
+      const bookId = localStorage.getItem("bookId");
+      if (bookId) {
+        resolve();
+      } else if (retries < maxRetries) {
+        retries++;
+        setTimeout(checkBookId, delay);
+      } else {
+        reject(new Error("等待 bookId 超时"));
+      }
+    };
+    checkBookId();
+  });
+};
+
+onMounted(async () => {
   checkTheme();
   updateResponsive();
-  initQuery();
+
+  // 等待 bookId 设置完成后再加载数据
+  try {
+    await waitForBookId();
+    initQuery();
+  } catch (error) {
+    console.error("等待 bookId 失败:", error);
+    // 即使失败也尝试加载，可能 bookId 已经存在
+    initQuery();
+  }
 
   // Watch for theme changes
   const themeObserver = new MutationObserver(checkTheme);

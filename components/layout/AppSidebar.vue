@@ -6,6 +6,7 @@ import {
   SunIcon,
   MoonIcon,
   XMarkIcon,
+  QuestionMarkCircleIcon,
 } from "@heroicons/vue/24/outline";
 
 interface Menu {
@@ -49,6 +50,12 @@ const items: Menu[] = [
     path: "flows",
     icon: CurrencyDollarIcon,
     color: "text-green-500",
+  },
+  {
+    title: "帮助中心",
+    path: "help",
+    icon: QuestionMarkCircleIcon,
+    color: "text-blue-500",
   },
 ];
 
@@ -104,6 +111,7 @@ const handleNavigate = (menu: Menu) => {
         <button
           v-for="item in items"
           :key="item.path"
+          :data-guide="`sidebar-${item.path}`"
           @click="handleNavigate(item)"
           :class="[
             'w-full flex items-center px-3 py-2 rounded-lg text-left transition-colors duration-200',

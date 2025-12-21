@@ -6,6 +6,7 @@ import {
 import { SystemConfig, GlobalUserInfo } from "~/utils/store";
 import { getUserInfo, doApi } from "~/utils/api";
 import type { Book } from "~/utils/table";
+import UserGuide from "~/components/guide/UserGuide.vue";
 
 // Responsive state
 const isMobile = ref(false);
@@ -19,6 +20,39 @@ const pageLoading = ref(false);
 // User state
 const route = useRoute();
 const openMenu = computed(() => route.path.slice(1) || "calendar");
+
+// 新手引导
+const showGuide = ref(false);
+const guideSteps = [
+  {
+    target: '[data-guide="sidebar-calendar"]',
+    title: "欢迎使用 Cashbook！",
+    content: "这是账本日历，您可以在这里查看和记录每天的收支情况。点击日期可以查看当天的流水，点击加号可以快速添加记录。",
+    position: "right" as const,
+    arrow: "left" as const,
+  },
+  {
+    target: '[data-guide="sidebar-analysis"]',
+    title: "数据分析",
+    content: "在数据分析页面，您可以查看各种图表来了解收支趋势和分类统计，帮助您更好地管理财务。",
+    position: "right" as const,
+    arrow: "left" as const,
+  },
+  {
+    target: '[data-guide="sidebar-flows"]',
+    title: "流水管理",
+    content: "流水管理页面可以查看所有流水记录，支持筛选、排序、批量操作和导入导出功能。",
+    position: "right" as const,
+    arrow: "left" as const,
+  },
+  {
+    target: '[data-guide="sidebar-help"]',
+    title: "帮助中心",
+    content: "遇到问题？点击帮助中心可以查看详细的使用说明和常见问题解答。",
+    position: "right" as const,
+    arrow: "left" as const,
+  },
+];
 
 // Watch route changes to show loading
 watch(
@@ -59,17 +93,38 @@ onMounted(async () => {
   // 自动获取用户的唯一账本并设置到 localStorage
   // 如果用户没有账本，API 会自动创建一个默认账本
   // 使用 await 确保在页面组件加载之前 bookId 已经设置好
-  if (!localStorage.getItem("bookId")) {
+  let bookId = localStorage.getItem("bookId");
+  if (!bookId) {
     try {
       const books = await doApi.post<Book[]>("api/entry/book/list", {});
       if (books && books.length > 0) {
         // 用户只有一个账本（默认账本），直接使用第一个
         const book = books[0];
+        bookId = book.bookId;
         localStorage.setItem("bookId", book.bookId);
         localStorage.setItem("bookName", book.bookName);
       }
     } catch (err) {
       console.error("获取账本失败:", err);
+    }
+  }
+
+  // 检查是否是首次登录，如果是则显示新手引导
+  if (bookId) {
+    try {
+      const isFirstTime = await doApi.get<boolean>(
+        `api/entry/user/isFirstTime?bookId=${bookId}`
+      );
+      // 检查是否已经完成过引导（使用 localStorage 标记）
+      const guideCompleted = localStorage.getItem("guide_completed");
+      if (isFirstTime && !guideCompleted) {
+        // 延迟显示引导，等待页面渲染完成
+        setTimeout(() => {
+          showGuide.value = true;
+        }, 1000);
+      }
+    } catch (err) {
+      console.error("检查首次登录状态失败:", err);
     }
   }
 
@@ -245,6 +300,20 @@ const checkVersion = () => {
     <!-- Dialogs -->
     <DialogSetConvertDialog v-if="showSetConvertDialog" />
     <DialogChangePasswordDialog v-if="showChangePasswordDialog" />
+
+    <!-- 新手引导 -->
+    <UserGuide
+      :steps="guideSteps"
+      :visible="showGuide"
+      @finish="
+        showGuide = false;
+        localStorage.setItem('guide_completed', 'true');
+      "
+      @skip="
+        showGuide = false;
+        localStorage.setItem('guide_completed', 'true');
+      "
+    />
   </div>
 </template>
 
