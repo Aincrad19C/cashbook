@@ -154,11 +154,11 @@
                       class="p-0.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
                       title="展开/折叠"
                     >
-                      <ExpandIcon
+                      <CollapseIcon
                         v-if="!expandedGroups.has(item.groupId!)"
                         class="h-3 w-3 text-gray-500"
                       />
-                      <CollapseIcon
+                      <ExpandIcon
                         v-else
                         class="h-3 w-3 text-gray-500"
                       />
@@ -369,11 +369,11 @@
                 class="p-0.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
                 title="展开/折叠"
               >
-                <ExpandIcon
+                <CollapseIcon
                   v-if="!expandedGroups.has(item.groupId!)"
                   class="h-3 w-3 text-gray-500"
                 />
-                <CollapseIcon
+                <ExpandIcon
                   v-else
                   class="h-3 w-3 text-gray-500"
                 />
