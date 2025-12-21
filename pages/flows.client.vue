@@ -14,6 +14,7 @@
       @exit-selection-mode="exitSelectionMode"
       @delete-selected="deleteItems"
       @batch-change-type="toChangeTypeBatch"
+      @merge-selected="mergeSelected"
       @open-search="searchDrawer = true"
       @reset-query="resetQuery"
     />
@@ -40,6 +41,7 @@
       @change-page="changePage"
       @change-page-size="changePageSize"
       @toggle-sort="toggleSort"
+      @unmerge-group="unmergeGroup"
     />
 
     <!-- 筛选抽屉 -->
@@ -601,6 +603,57 @@ const toChangeTypeBatch = () => {
     return;
   }
   showBatchChangeDialog.value = true;
+};
+
+// 合并选中的记录
+const mergeSelected = () => {
+  if (!isSelectionMode.value || selectedFlows.value.length < 2) {
+    Alert.error("至少需要选择2条记录才能合并");
+    return;
+  }
+  Confirm.open({
+    title: "合并确认",
+    content: `确定将选中的 ${selectedFlows.value.length} 条记录合并为一条吗？`,
+    confirm: () => {
+      doApi
+        .post("api/entry/flow/merge", {
+          ids: selectedFlows.value,
+          bookId: localStorage.getItem("bookId"),
+        })
+        .then(() => {
+          Alert.success("合并成功");
+          selectedFlows.value = [];
+          doQuery();
+          // 合并后退出选择模式
+          exitSelectionMode();
+        })
+        .catch((error: any) => {
+          Alert.error(error?.message || "合并失败");
+        });
+    },
+  });
+};
+
+// 取消合并
+const unmergeGroup = (groupId: string) => {
+  Confirm.open({
+    title: "取消合并确认",
+    content: `确定要取消这个合并组吗？合并的记录将恢复为独立记录。`,
+    confirm: () => {
+      doApi
+        .post("api/entry/flow/unmerge", {
+          groupId,
+          bookId: localStorage.getItem("bookId"),
+        })
+        .then(() => {
+          Alert.success("取消合并成功");
+          doQuery();
+        })
+        .catch((error: any) => {
+          Alert.error(error?.message || "取消合并失败");
+        });
+    },
+  });
 };
 
 // 编辑单个流水

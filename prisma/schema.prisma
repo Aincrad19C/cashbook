@@ -57,6 +57,7 @@ model Flow {
   origin       String? // 流水来源：谁谁-支付宝导入；谁谁手动输出
   attribution  String? // 流水归属（谁的收入/支出）
   eliminate    Int?    @default(0) // 平账标志，0未平账；1已平账，-1忽略平账
+  groupId      String? // 合并组ID，相同groupId的记录属于同一个合并组
 }
 
 // Budget 支出计划

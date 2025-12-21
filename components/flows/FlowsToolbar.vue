@@ -71,6 +71,20 @@
             <span class="hidden sm:inline">类型修改{{ selectedCount > 0 ? `(${selectedCount})` : '' }}</span>
             <span class="sm:hidden">修改{{ selectedCount > 0 ? `(${selectedCount})` : '' }}</span>
           </button>
+          <button
+            @click="$emit('mergeSelected')"
+            :disabled="selectedCount < 2"
+            :class="[
+              'flex-1 sm:flex-none px-2 py-1 md:px-3 md:py-2 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-sm font-medium',
+              selectedCount >= 2
+                ? 'bg-teal-600 hover:bg-teal-700 text-white cursor-pointer'
+                : 'bg-gray-400 dark:bg-gray-600 text-gray-200 dark:text-gray-400 cursor-not-allowed opacity-60'
+            ]"
+          >
+            <ArrowsPointingInIcon class="w-4 h-4" />
+            <span class="hidden sm:inline">合并{{ selectedCount >= 2 ? `(${selectedCount})` : '' }}</span>
+            <span class="sm:hidden">合并{{ selectedCount >= 2 ? `(${selectedCount})` : '' }}</span>
+          </button>
         </div>
 
         <!-- 筛选操作 -->
@@ -110,6 +124,7 @@ import {
   PencilSquareIcon,
   CheckIcon,
   XMarkIcon,
+  ArrowsPointingInIcon,
 } from "@heroicons/vue/24/outline";
 
 interface Props {
@@ -127,6 +142,7 @@ defineEmits<{
   exitSelectionMode: [];
   deleteSelected: [];
   batchChangeType: [];
+  mergeSelected: [];
   openSearch: [];
   resetQuery: [];
 }>();
