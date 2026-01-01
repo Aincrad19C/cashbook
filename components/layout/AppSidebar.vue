@@ -107,53 +107,69 @@ const handleNavigate = (menu: Menu) => {
       </div>
 
       <!-- Navigation -->
-      <nav class="flex-1 p-4 space-y-2">
+      <nav class="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
         <button
           v-for="item in items"
           :key="item.path"
           :data-guide="`sidebar-${item.path}`"
           @click="handleNavigate(item)"
           :class="[
-            'w-full flex items-center px-3 py-2 rounded-lg text-left transition-colors duration-200',
+            'group relative w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-200 ease-out',
+            'focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2',
             currentPath === item.path
-              ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-300 border border-green-200 dark:border-green-700'
-              : 'text-gray-700 dark:text-gray-200 hover:bg-green-200 dark:hover:bg-green-800',
+              ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-300 shadow-sm'
+              : 'text-gray-700 dark:text-gray-200 hover:bg-green-200 dark:hover:bg-green-800 active:scale-[0.98]',
           ]"
         >
-          <component
-            v-if="item.icon !== 'string'"
-            :is="item.icon"
+          <!-- 激活态左侧竖条 -->
+          <div
+            v-if="currentPath === item.path"
+            class="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-green-600 dark:bg-green-500 rounded-r-full"
+          ></div>
+          <!-- 图标容器 -->
+          <div
             :class="[
-              'h-5 w-5 mr-3',
+              'flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-200',
               currentPath === item.path
-                ? 'text-green-600 dark:text-green-400'
-                : item.color,
+                ? 'bg-green-100 dark:bg-green-900/30'
+                : 'bg-transparent group-hover:bg-green-100/50 dark:group-hover:bg-green-800/50',
             ]"
           >
-          </component>
-          <i
-            v-else
-            :class="[
-              item.icon,
-              'text-base mr-3',
-              currentPath === item.path
-                ? 'text-green-600 dark:text-green-400'
-                : item.color,
-            ]"
-          ></i>
-          <span class="font-medium">{{ item.title }}</span>
+            <component
+              v-if="item.icon !== 'string'"
+              :is="item.icon"
+              :class="[
+                'h-4 w-4 flex-shrink-0 transition-colors duration-200',
+                currentPath === item.path
+                  ? 'text-green-600 dark:text-green-400'
+                  : item.color + ' dark:opacity-80',
+              ]"
+            >
+            </component>
+            <i
+              v-else
+              :class="[
+                item.icon,
+                'text-base flex-shrink-0',
+                currentPath === item.path
+                  ? 'text-green-600 dark:text-green-400'
+                  : item.color + ' dark:opacity-80',
+              ]"
+            ></i>
+          </div>
+          <span class="text-sm font-medium flex-1">{{ item.title }}</span>
         </button>
       </nav>
 
       <!-- Theme toggle -->
-      <div class="p-4 border-t border-green-100 dark:border-green-900">
+      <div class="px-4 py-3 border-t border-green-100 dark:border-green-900 bg-white dark:bg-black">
         <button
           @click="toggleTheme"
-          class="w-full flex items-center justify-center px-3 py-2 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-green-200 dark:hover:bg-green-800 transition-colors font-medium"
+          class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-green-200 dark:hover:bg-green-800 active:scale-95 transition-all duration-200 ease-out focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
         >
-          <SunIcon v-if="!isDark" class="h-5 w-5 mr-2 text-yellow-500" />
-          <MoonIcon v-else class="h-5 w-5 mr-2 text-green-300" />
-          <span>{{ isDark ? "深色模式" : "浅色模式" }}</span>
+          <SunIcon v-if="!isDark" class="h-4 w-4 text-amber-500" />
+          <MoonIcon v-else class="h-4 w-4 text-green-400" />
+          <span class="text-xs">{{ isDark ? "深色模式" : "浅色模式" }}</span>
         </button>
       </div>
     </div>
