@@ -9,7 +9,7 @@
           <tr>
             <th
               v-if="isSelectionMode"
-              class="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+              class="px-3 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider"
             >
               <input
                 type="checkbox"
@@ -19,84 +19,88 @@
               />
             </th>
             <th
-              class="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+              class="px-3 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
               @click="$emit('toggleSort', 'day')"
             >
-              <div class="flex items-center gap-1">
+              <div class="flex items-center gap-2.5">
                 日期
-                <div class="flex flex-col">
+                <div class="flex flex-col items-center -space-y-1">
                   <ChevronUpIcon
-                    class="h-3 w-3 -mb-0.5"
+                    class="h-5 w-5 transition-all"
                     :class="
                       daySort === 'asc'
-                        ? 'text-blue-600 dark:text-blue-400'
-                        : 'text-gray-400 dark:text-gray-500'
+                        ? 'text-primary-700 dark:text-primary-300 stroke-2'
+                        : 'text-gray-300 dark:text-gray-600 opacity-50'
                     "
+                    stroke-width="2.5"
                   />
                   <ChevronDownIcon
-                    class="h-3 w-3 -mt-0.5"
+                    class="h-5 w-5 transition-all"
                     :class="
                       daySort === 'desc'
-                        ? 'text-blue-600 dark:text-blue-400'
-                        : 'text-gray-400 dark:text-gray-500'
+                        ? 'text-primary-700 dark:text-primary-300 stroke-2'
+                        : 'text-gray-300 dark:text-gray-600 opacity-50'
                     "
+                    stroke-width="2.5"
                   />
                 </div>
               </div>
             </th>
             <th
-              class="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+              class="px-3 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider"
             >
               流水类型
             </th>
             <th
-              class="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+              class="px-3 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider"
             >
               支出/收入类型
             </th>
             <th
-              class="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+              class="px-3 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider"
             >
               支付方式
             </th>
             <th
-              class="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+              class="px-3 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
               @click="$emit('toggleSort', 'money')"
             >
-              <div class="flex items-center gap-1">
+              <div class="flex items-center gap-2.5">
                 金额
-                <div class="flex flex-col">
+                <div class="flex flex-col items-center -space-y-1">
                   <ChevronUpIcon
-                    class="h-3 w-3 -mb-0.5"
+                    class="h-5 w-5 transition-all"
                     :class="
                       moneySort === 'asc'
-                        ? 'text-blue-600 dark:text-blue-400'
-                        : 'text-gray-400 dark:text-gray-500'
+                        ? 'text-primary-700 dark:text-primary-300 stroke-2'
+                        : 'text-gray-300 dark:text-gray-600 opacity-50'
                     "
+                    stroke-width="2.5"
                   />
                   <ChevronDownIcon
-                    class="h-3 w-3 -mt-0.5"
+                    class="h-5 w-5 transition-all"
                     :class="
                       moneySort === 'desc'
-                        ? 'text-blue-600 dark:text-blue-400'
-                        : 'text-gray-400 dark:text-gray-500'
+                        ? 'text-primary-700 dark:text-primary-300 stroke-2'
+                        : 'text-gray-300 dark:text-gray-600 opacity-50'
                     "
+                    stroke-width="2.5"
                   />
                 </div>
               </div>
             </th>
             <th
-              class="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+              class="px-3 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider"
             >
               名称
             </th>
             <th
-              class="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+              class="px-3 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider"
             >
               备注
             </th>
             <th
-              class="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+              class="px-3 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider"
             >
               操作
             </th>

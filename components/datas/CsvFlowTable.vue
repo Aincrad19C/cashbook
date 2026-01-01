@@ -54,7 +54,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onMounted, ref, watch } from "vue";
 import { CloudArrowUpIcon } from "@heroicons/vue/24/outline";
 
 const { items, tableHead, tableBody, successCallback } = defineProps([
@@ -69,7 +69,11 @@ const { items, tableHead, tableBody, successCallback } = defineProps([
 const uploading = ref(false);
 // 待上传的流水数据
 const flows = ref<Flow[]>([]);
-flows.value.push(...items);
+
+// 初始化
+if (items && items.length > 0) {
+  flows.value.push(...items);
+}
 
 // 流水归属
 const attribution = ref("");
@@ -77,6 +81,60 @@ const attribution = ref("");
 const excelTable = ref();
 const excelTableHead = ref();
 const excelTableBody = ref();
+
+// 渲染表格body（使用flows数据更新类型字段）
+const renderTableBody = () => {
+  if (!excelTableBody.value) return;
+  
+  // 清空现有内容
+  excelTableBody.value.innerHTML = "";
+  
+  if (tableBody && tableBody.length > 0) {
+    tableBody.forEach((row: any[], index: number) => {
+      const flow = flows.value[index];
+      if (!flow) return;
+
+      const tr = document.createElement("tr");
+      tr.className = "hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors";
+      
+      // 根据表头映射更新类型字段
+      let colIndex = 0;
+      for (let h in tableHead) {
+        let cellValue = row[colIndex] || "";
+        
+        // 如果是类型相关字段，使用flows中的值（识别后的结果）
+        if (h === "收/支") {
+          // 收入/支出类型：如果有flowType就使用，否则使用原始值
+          cellValue = flow.flowType || cellValue;
+        } else if (h === "交易类型") {
+          // 交易类型：如果有industryType就使用，否则显示空（不显示原始值）
+          cellValue = flow.industryType || "";
+        } else if (h === "交易分类") {
+          // 交易分类：如果有industryType就使用，否则显示空（不显示原始值）
+          cellValue = flow.industryType || "";
+        }
+        
+        const td = document.createElement("td");
+        td.innerText = cellValue;
+        td.className = "px-3 py-2 text-sm text-gray-900 dark:text-gray-100 max-w-32 truncate border-b border-gray-200 dark:border-gray-700";
+        td.title = cellValue;
+        tr.appendChild(td);
+        colIndex++;
+      }
+      
+      excelTableBody.value.appendChild(tr);
+    });
+  }
+};
+
+// 监听items变化，更新flows
+watch(() => items, (newItems) => {
+  flows.value = [...(newItems || [])];
+  // 重新渲染表格（仅在组件挂载后）
+  if (excelTableBody.value) {
+    renderTableBody();
+  }
+}, { immediate: true, deep: true });
 
 // 读取json文件并导入
 onMounted(() => {
@@ -97,25 +155,7 @@ onMounted(() => {
     excelTableHead.value.appendChild(head);
   }
   
-  if (excelTableBody.value) {
-    for (let row of tableBody) {
-      // 创建行元素
-      const tr = document.createElement("tr");
-      tr.className = "hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors";
-      
-      // 部分数据字段格式化，并回显
-      for (let c of row) {
-        let cellValue = c;
-        // 创建单元格元素
-        const td = document.createElement("td");
-        td.innerText = cellValue;
-        td.className = "px-3 py-2 text-sm text-gray-900 dark:text-gray-100 max-w-32 truncate border-b border-gray-200 dark:border-gray-700";
-        td.title = cellValue;
-        tr.appendChild(td);
-      }
-      excelTableBody.value.appendChild(tr);
-    }
-  }
+  renderTableBody();
 });
 
 // 确定提交
@@ -136,7 +176,7 @@ const submitUpload = () => {
   doApi
     .post("api/entry/flow/imports", {
       flows: flows.value,
-      bookId: localStorage.getItem("bookId"),
+      bookId: typeof window !== 'undefined' ? localStorage.getItem("bookId") : null,
     })
     .then((res: any) => {
       // console.log(res)

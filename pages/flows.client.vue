@@ -69,10 +69,120 @@
       @import-template="importCsvTemplate"
     />
 
+    <!-- 自动识别确认对话框 -->
+    <div
+      v-if="showClassifyConfirmDialog"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      @click.self="closeClassifyConfirmDialog"
+    >
+      <div
+        class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md flex flex-col"
+        @click.stop
+      >
+        <div
+          class="px-6 py-4 border-b border-gray-200 dark:border-gray-600 flex justify-between items-center"
+        >
+          <h3 class="text-lg font-semibold text-green-950 dark:text-white">
+            AI智能识别
+          </h3>
+          <button
+            @click="closeClassifyConfirmDialog"
+            class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 p-1 rounded transition-colors"
+          >
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <div class="px-6 py-4 space-y-4">
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            检测到您导入的是{{ getFileTypeName() }}账单，是否使用AI自动识别交易类型？
+          </p>
+          <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+            <p class="text-xs text-blue-700 dark:text-blue-300">
+              💡 使用AI识别可以自动将"商户消费"等类型识别为"饮食"、"交通"等更准确的分类，您可以在预览中修改识别结果。
+            </p>
+          </div>
+        </div>
+
+        <div
+          class="px-6 py-4 border-t border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/30 flex gap-3"
+        >
+          <button
+            @click="confirmWithoutClassify"
+            class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 rounded text-sm font-medium transition-colors"
+          >
+            不使用识别
+          </button>
+          <button
+            @click="confirmWithClassify"
+            class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition-colors"
+          >
+            使用AI识别
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 识别进度对话框 -->
+    <div
+      v-if="showClassifyProgressDialog"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4"
+    >
+      <div
+        class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md flex flex-col"
+      >
+        <div
+          class="px-6 py-4 border-b border-gray-200 dark:border-gray-600 flex justify-between items-center"
+        >
+          <h3 class="text-lg font-semibold text-green-950 dark:text-white">
+            AI智能识别中
+          </h3>
+        </div>
+
+        <div class="px-6 py-6 space-y-4">
+          <div class="flex items-center justify-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          </div>
+          <div class="text-center space-y-2">
+            <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              正在识别交易类型...
+            </p>
+            <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">
+              {{ classifyProgress }}%
+            </p>
+          </div>
+          
+          <!-- 进度条 -->
+          <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+            <div
+              class="bg-blue-600 h-3 rounded-full transition-all duration-300"
+              :style="{ width: classifyProgress + '%' }"
+            ></div>
+          </div>
+          
+          <div class="text-center text-xs text-gray-500 dark:text-gray-400">
+            已识别 {{ classifyCompleted }} / {{ classifyTotal }} 条流水
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- CSV流水导入对话框 -->
     <div
       v-if="showFlowExcelImportDialog"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[55] p-4"
       @click="closeCsvTableDialog"
     >
       <div
@@ -106,6 +216,7 @@
         </div>
         <div class="flex-1 overflow-hidden p-4">
           <CsvFlowTable
+            :key="csvFlows.length + classifyCompleted"
             :items="csvFlows"
             :table-head="csvHeaders"
             :table-body="csvDatas"
@@ -303,6 +414,8 @@ import {
   wxpayConvert,
   templateConvert,
 } from "@/utils/flowConvert";
+import { classifyTransaction } from "~/utils/typeClassifier";
+import type { ClassificationResult } from "~/utils/typeClassifier";
 
 definePageMeta({
   layout: "public",
@@ -338,6 +451,13 @@ const csvHeaders = ref<Record<string, number>>({});
 const csvDatas = ref<Record<number, any>[]>([]);
 const fileType = ref("none");
 const titleRowIndex = ref(0);
+const isClassifying = ref(false);
+const useAutoClassify = ref(true); // 是否使用自动识别
+const classifyProgress = ref(0); // 识别进度 0-100
+const classifyTotal = ref(0); // 需要识别的总数
+const classifyCompleted = ref(0); // 已完成的数量
+const showClassifyConfirmDialog = ref(false); // 显示确认窗口
+const showClassifyProgressDialog = ref(false); // 显示识别进度窗口
 
 const flowQuery = ref<any>({
   pageNum: 1,
@@ -777,7 +897,7 @@ const readCsvInfo = (event: Event) => {
   const reader = new FileReader();
 
   // 设置文件读取完成后的回调函数
-  reader.onload = (event) => {
+  reader.onload = async (event) => {
     try {
       // 文件数据ArrayBuffer
       const buffer = event.target?.result;
@@ -887,8 +1007,22 @@ const readCsvInfo = (event: Event) => {
         }
         csvFlows.value.push(flow);
       });
-      Alert.warning("数据解析完成，请预览并点击【确定导入】保存数据");
-      showFlowExcelImportDialog.value = true;
+
+      // 对于微信、支付宝、京东账单，显示确认窗口
+      if (fileType.value === "wxpay" || fileType.value === "alipay" || fileType.value === "jdFinance") {
+        // 显示确认窗口，让用户选择是否使用自动识别
+        showClassifyConfirmDialog.value = true;
+      } else {
+        // 其他类型直接显示预览
+        showFlowExcelImportDialog.value = true;
+      }
+      
+      // 触发表格初始渲染
+      const currentDatas = [...csvDatas.value];
+      csvDatas.value = [];
+      setTimeout(() => {
+        csvDatas.value = currentDatas;
+      }, 50);
     } catch (error) {
       console.error(error);
       Alert.error("数据解析出错了，请确认文件是否存在问题");
@@ -897,6 +1031,204 @@ const readCsvInfo = (event: Event) => {
 
   // 读取文件的内容为文本
   reader.readAsArrayBuffer(file);
+};
+
+/**
+ * 开始自动识别（后台进行）
+ */
+const startAutoClassify = () => {
+  // 在后台异步执行，不阻塞UI
+  autoClassifyFlows().catch((error) => {
+    console.error("自动识别类型失败:", error);
+  });
+};
+
+/**
+ * 手动触发识别
+ */
+const startManualClassify = () => {
+  useAutoClassify.value = true;
+  startAutoClassify();
+};
+
+/**
+ * 自动识别开关切换
+ */
+const onAutoClassifyToggle = () => {
+  if (!useAutoClassify.value) {
+    // 如果关闭自动识别，清空类型字段
+    csvFlows.value.forEach((flow) => {
+      flow.flowType = "";
+      flow.industryType = "";
+    });
+  }
+};
+
+/**
+ * 获取文件类型名称
+ */
+const getFileTypeName = () => {
+  if (fileType.value === 'wxpay') return '微信';
+  if (fileType.value === 'alipay') return '支付宝';
+  if (fileType.value === 'jdFinance') return '京东';
+  return '未知';
+};
+
+/**
+ * 关闭确认对话框
+ */
+const closeClassifyConfirmDialog = () => {
+  showClassifyConfirmDialog.value = false;
+  // 如果不使用识别，只清空交易类型（industryType），保留收入/支出（flowType）
+  useAutoClassify.value = false;
+  csvFlows.value.forEach((flow) => {
+    flow.industryType = "";
+  });
+  // 触发表格重新渲染
+  const currentDatas = [...csvDatas.value];
+  csvDatas.value = [];
+  setTimeout(() => {
+    csvDatas.value = currentDatas;
+    showFlowExcelImportDialog.value = true;
+  }, 100);
+};
+
+/**
+ * 确认不使用识别
+ */
+const confirmWithoutClassify = () => {
+  console.log("确认不使用识别");
+  useAutoClassify.value = false;
+  // 只清空交易类型（industryType），保留收入/支出（flowType）
+  csvFlows.value.forEach((flow) => {
+    flow.industryType = "";
+  });
+  showClassifyConfirmDialog.value = false;
+  // 触发表格重新渲染
+  const currentDatas = [...csvDatas.value];
+  csvDatas.value = [];
+  setTimeout(() => {
+    csvDatas.value = currentDatas;
+    showFlowExcelImportDialog.value = true;
+  }, 100);
+};
+
+/**
+ * 确认使用识别
+ */
+const confirmWithClassify = () => {
+  useAutoClassify.value = true;
+  showClassifyConfirmDialog.value = false;
+  showClassifyProgressDialog.value = true;
+  // 开始识别
+  autoClassifyFlows().catch((error) => {
+    console.error("自动识别类型失败:", error);
+    showClassifyProgressDialog.value = false;
+    showFlowExcelImportDialog.value = true;
+  });
+};
+
+/**
+ * 自动识别缺失类型的流水（仅用于微信、支付宝、京东账单导入）
+ */
+const autoClassifyFlows = async () => {
+  // 对于微信、支付宝、京东账单，即使有类型也可能不准确，所以对所有流水进行识别
+  const flowsToClassify = csvFlows.value.filter((flow) => {
+    // 只要有名称或描述，就可以尝试识别
+    return (flow.name && flow.name.trim()) || (flow.description && flow.description.trim());
+  });
+
+  isClassifying.value = true;
+  
+  if (flowsToClassify.length === 0) {
+    console.log("没有可识别的流水（缺少名称或描述）");
+    // 即使没有可识别的流水，也要关闭进度窗口并显示预览
+    isClassifying.value = false;
+    classifyProgress.value = 100;
+    showClassifyProgressDialog.value = false;
+    showFlowExcelImportDialog.value = true;
+    return;
+  }
+
+  classifyTotal.value = flowsToClassify.length;
+  classifyCompleted.value = 0;
+  classifyProgress.value = 0;
+
+  console.log(`开始识别 ${flowsToClassify.length} 条流水的类型...`, flowsToClassify.slice(0, 3));
+
+  try {
+    // 构建识别请求
+    const transactions = flowsToClassify.map((flow) => ({
+      merchantName: flow.name || "",
+      description: flow.description || "",
+      amount: flow.money || 0,
+    }));
+
+    console.log("准备调用API识别，前3条数据:", transactions.slice(0, 3));
+
+    // 批量识别（带进度更新）
+    const batchSize = 5;
+    const delay = 300;
+    const results: Array<ClassificationResult | null> = [];
+
+    for (let i = 0; i < transactions.length; i += batchSize) {
+      const batch = transactions.slice(i, i + batchSize);
+      
+      const batchPromises = batch.map((tx) => {
+        return classifyTransaction(tx.merchantName, tx.description, tx.amount);
+      });
+
+      const batchResults = await Promise.all(batchPromises);
+      results.push(...batchResults);
+
+      // 更新进度
+      classifyCompleted.value = results.length;
+      classifyProgress.value = Math.round((classifyCompleted.value / classifyTotal.value) * 100);
+
+      // 批次间延迟，避免API限流
+      if (i + batchSize < transactions.length && delay > 0) {
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+
+    console.log("API识别结果:", results.slice(0, 3), `共${results.length}条`);
+
+    // 应用识别结果
+    // 只识别交易类型（industryType），不识别收入/支出（flowType），因为flowType从CSV中已经可以准确获取
+    results.forEach((result, index) => {
+      if (result && result.industryType) {
+        const flow = flowsToClassify[index];
+        const oldType = flow.industryType;
+        flow.industryType = result.industryType;
+        console.log(`识别 industryType: ${oldType || '空'} -> ${result.industryType}`, flow.name);
+      }
+      // 如果result为null，保持原样（当前策略）
+    });
+    
+    // 触发表格重新渲染
+    const currentDatas = [...csvDatas.value];
+    csvDatas.value = [];
+    setTimeout(() => {
+      csvDatas.value = currentDatas;
+    }, 100);
+
+    const successCount = results.filter((r) => r !== null && r.industryType).length;
+    if (successCount > 0) {
+      Alert.success(`已为 ${successCount} 条流水自动识别类型，您可以在预览中修改`);
+    }
+  } catch (error) {
+    console.error("自动识别类型失败:", error);
+    // 失败时静默处理，保持原样（当前策略）
+  } finally {
+    isClassifying.value = false;
+    classifyProgress.value = 100;
+    // 确保关闭进度窗口，显示预览窗口
+    // 延迟300ms，让用户看到100%的进度
+    setTimeout(() => {
+      showClassifyProgressDialog.value = false;
+      showFlowExcelImportDialog.value = true;
+    }, 300);
+  }
 };
 
 const importSuccess = () => {
@@ -909,6 +1241,7 @@ const removeFile = () => {
   csvHeaders.value = {};
   csvDatas.value = [];
   csvFile.value = undefined; // 清楚选中的文件
+  isClassifying.value = false;
   return true;
 };
 

@@ -145,8 +145,27 @@
             请先选择文件
           </div>
         </div>
+        <!-- 智能识别提示 -->
         <div
-          v-else
+          v-if="csvHeaders.length > 0 && !isClassifying"
+          class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg"
+        >
+          <p class="text-sm text-blue-700 dark:text-blue-300">
+            💡 提示：导入后系统会自动识别缺失的交易类型。您可以在预览中修改识别结果。
+          </p>
+        </div>
+        <!-- 识别中提示 -->
+        <div
+          v-if="isClassifying"
+          class="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg"
+        >
+          <div class="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300">
+            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-amber-600"></div>
+            <span>正在智能识别交易类型...</span>
+          </div>
+        </div>
+        <div
+          v-if="csvHeaders.length > 0"
           class="max-h-96 overflow-y-auto bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border"
         >
           <div
@@ -310,6 +329,7 @@ import {
   ExclamationTriangleIcon,
   MagnifyingGlassIcon,
 } from "@heroicons/vue/24/outline";
+import { classifyTransactionsBatch } from "~/utils/typeClassifier";
 
 // ESC键监听
 useEscapeKey(() => {
@@ -610,6 +630,13 @@ const readCsvInfo = () => {
       // 渲染表格
       renderTable();
 
+      // 智能识别类型（仅对缺失类型的流水）
+      // 在后台异步执行，不阻塞UI
+      autoClassifyFlows().catch((error) => {
+        console.error("自动识别类型失败:", error);
+        // 失败时静默处理，保持原样（当前策略）
+      });
+
       Alert.success("数据解析完成，请预览并点击【导入数据】保存数据");
       showCsvTable.value = true;
     } catch (error) {
@@ -622,6 +649,69 @@ const readCsvInfo = () => {
   reader.readAsArrayBuffer(file);
 };
 const showCsvTable = ref(false);
+const isClassifying = ref(false);
+
+/**
+ * 自动识别缺失类型的流水
+ */
+const autoClassifyFlows = async () => {
+  // 找出需要识别的流水（flowType或industryType为空）
+  const flowsToClassify = csvFlows.value.filter(
+    (flow) => !flow.flowType || !flow.industryType
+  );
+
+  if (flowsToClassify.length === 0) {
+    return; // 所有流水都有类型，无需识别
+  }
+
+  isClassifying.value = true;
+
+  try {
+    // 构建识别请求
+    const transactions = flowsToClassify.map((flow) => ({
+      merchantName: flow.name || "",
+      description: flow.description || "",
+      amount: flow.money || 0,
+    }));
+
+    // 批量识别
+    const results = await classifyTransactionsBatch(transactions, {
+      batchSize: 5,
+      delay: 300,
+    });
+
+    // 应用识别结果（仅填充空字段）
+    results.forEach((result, index) => {
+      if (result) {
+        const flow = flowsToClassify[index];
+        // 只填充空字段，不覆盖已有值
+        if (!flow.flowType) {
+          flow.flowType = result.flowType;
+        }
+        if (!flow.industryType) {
+          flow.industryType = result.industryType;
+        }
+      }
+      // 如果result为null，保持原样（当前策略）
+    });
+
+    const successCount = results.filter((r) => r !== null).length;
+    if (successCount > 0) {
+      Alert.success(`已为 ${successCount} 条流水自动识别类型，您可以在预览中修改`);
+    } else if (flowsToClassify.length > 0) {
+      // 如果所有识别都失败，可能是API未配置，静默处理
+      console.log("智能识别未成功，使用当前策略（保持原样）");
+    } else if (flowsToClassify.length > 0) {
+      // 如果所有识别都失败，可能是API未配置，静默处理
+      console.log("智能识别未成功，使用当前策略（保持原样）");
+    }
+  } catch (error) {
+    console.error("自动识别类型失败:", error);
+    // 失败时静默处理，保持原样（当前策略）
+  } finally {
+    isClassifying.value = false;
+  }
+};
 
 /**
  * 根据映射配置转换数据
