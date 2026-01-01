@@ -10,7 +10,6 @@ interface Props {
   isMobile: boolean;
   onToggleSidebar: () => void;
   onLogout: () => void;
-  onOpenAdmin: () => void;
   onOpenConvertDialog: () => void;
   onOpenChangePasswordDialog: () => void;
 }
@@ -19,7 +18,6 @@ const props = defineProps<Props>();
 const emit = defineEmits<{
   toggleSidebar: [];
   logout: [];
-  openAdmin: [];
   openConvertDialog: [];
   openChangePasswordDialog: [];
 }>();
@@ -82,12 +80,6 @@ const showUserMenu = ref(false);
                 class="absolute right-4 top-16 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-green-100 dark:border-green-900 z-50"
               >
                 <div class="py-1">
-                  <button
-                    @click="emit('openAdmin')"
-                    class="w-full px-4 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                  >
-                    后台管理
-                  </button>
                   <button
                     @click="emit('openConvertDialog')"
                     class="w-full px-4 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"

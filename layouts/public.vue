@@ -127,9 +127,6 @@ onMounted(async () => {
       console.error("检查首次登录状态失败:", err);
     }
   }
-
-  // Check for version updates
-  checkVersion();
 });
 
 onUnmounted(() => {
@@ -156,55 +153,12 @@ const navigateToPath = (path: string) => {
   navigateTo({ path: `/${path}` });
 };
 
-const openAdmin = () => {
-  window.open(`/admin`, "_blank");
-};
-
 const openConvertDialog = () => {
   showSetConvertDialog.value = true;
 };
 
 const openChangePasswordDialog = () => {
   showChangePasswordDialog.value = true;
-};
-
-// Version check (keeping original functionality)
-const checkVersion = () => {
-  fetch("https://api.github.com/repos/dingdangdog/cashbook/releases/latest")
-    .then((res) => res.json())
-    .then((data) => {
-      const latestVersion = data.tag_name.replace("v", "");
-      const currentVersion = SystemConfig.value?.version;
-      const newVersionNotify = localStorage.getItem(latestVersion);
-      if (newVersionNotify) {
-        return;
-      }
-      if (currentVersion && latestVersion && currentVersion !== latestVersion) {
-        console.log(`New version available: ${latestVersion}`);
-        Confirm.open({
-          title: "提示",
-          content: `当前版本：${currentVersion}，最新版本：${latestVersion}，可前往Github查看更新内容！`,
-          confirmText: "前往Github",
-          cancelText: "不再提示",
-          closeText: "知道了",
-          confirm: () => {
-            window.open(
-              `https://github.com/dingdangdog/cashbook/releases`,
-              "_blank"
-            );
-          },
-          cancel: () => {
-            localStorage.setItem(latestVersion, "true");
-          },
-          close: () => {},
-        });
-      } else {
-        console.log("You are using the latest version.");
-      }
-    })
-    .catch((error) => {
-      console.error("Error fetching version data:", error);
-    });
 };
 </script>
 
@@ -224,7 +178,6 @@ const checkVersion = () => {
       :is-mobile="isMobile"
       @toggle-sidebar="sidebarOpen = !sidebarOpen"
       @logout="logout"
-      @open-admin="openAdmin"
       @open-convert-dialog="openConvertDialog"
       @open-change-password-dialog="openChangePasswordDialog"
     />
