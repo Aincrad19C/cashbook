@@ -98,6 +98,19 @@ const chartParam = ref<CommonChartQuery & { groupBy: string }>({
 
 const dataList: any[] = [];
 const noData = ref(false);
+const currentHoverName = ref<string>("");
+
+// 计算总金额，用于显示默认的中心文字
+const getTotalValue = () => {
+  if (dataList.length === 0) return "0.00";
+  const total = dataList.reduce((sum, item) => sum + Number(item.value), 0);
+  return total.toFixed(2);
+};
+
+// 获取默认显示的名称（根据flowType）
+const getDefaultName = () => {
+  return props.flowType || "总计";
+};
 
 const optionRef = ref({
   tooltip: {
@@ -141,15 +154,47 @@ const optionRef = ref({
       label: {
         show: true,
         position: "center",
+        fontSize: 24,
+        fontWeight: "bold",
         formatter(param: any) {
-          // correct the percentage
-          return param.name + " (" + param.percent + "%)";
+          const displayName = currentHoverName.value || getDefaultName();
+          let displayValue = "0.00";
+          
+          if (currentHoverName.value) {
+            // hover时，从当前数据中查找对应类型的值
+            const currentData = optionRef.value.series[0].data as any[];
+            const hoveredItem = currentData.find((d: any) => d.name === currentHoverName.value);
+            displayValue = hoveredItem?.value || "0.00";
+          } else {
+            // 默认显示总金额
+            const currentData = optionRef.value.series[0].data as any[];
+            if (currentData && currentData.length > 0) {
+              const total = currentData.reduce((sum: number, item: any) => sum + Number(item.value || 0), 0);
+              displayValue = total.toFixed(2);
+            }
+          }
+          
+          return `{name|${displayName}}\n{value|${displayValue}}`;
+        },
+        rich: {
+          name: {
+            fontSize: 24,
+            fontWeight: "bold",
+            lineHeight: 30,
+            color: isDark.value ? "#e5e7eb" : "#374151",
+          },
+          value: {
+            fontSize: 24,
+            fontWeight: "bold",
+            lineHeight: 30,
+            color: isDark.value ? "#e5e7eb" : "#374151",
+          },
         },
       },
       emphasis: {
         label: {
           show: true,
-          fontSize: "40",
+          fontSize: 24,
           fontWeight: "bold",
         },
       },
@@ -216,6 +261,17 @@ const doQuery = (query: CommonChartQuery & { groupBy: string }) => {
         optionRef.value.series[0].itemStyle.borderColor = isDark.value
           ? "#4b5563"
           : "#d1d5db";
+        
+        // 更新rich text颜色
+        optionRef.value.series[0].label.rich.name.color = isDark.value
+          ? "#e5e7eb"
+          : "#374151";
+        optionRef.value.series[0].label.rich.value.color = isDark.value
+          ? "#e5e7eb"
+          : "#374151";
+
+        // 重置hover状态
+        currentHoverName.value = "";
 
         // 确保图表完全重新渲染
         chart.clear();
@@ -252,6 +308,19 @@ watch(
   { deep: true }
 );
 
+// 监听主题变化，更新rich text颜色
+watch(isDark, () => {
+  if (chart) {
+    optionRef.value.series[0].label.rich.name.color = isDark.value
+      ? "#e5e7eb"
+      : "#374151";
+    optionRef.value.series[0].label.rich.value.color = isDark.value
+      ? "#e5e7eb"
+      : "#374151";
+    chart.setOption(optionRef.value);
+  }
+});
+
 const query = ref();
 const showFlowTable = ref(false);
 
@@ -285,6 +354,19 @@ onMounted(() => {
     oldInstance.dispose();
   }
   chart = echarts.init(chartDiv);
+  
+  // 监听鼠标hover事件，更新中心文字
+  chart.on("mouseover", function (param: any) {
+    currentHoverName.value = param.name || "";
+    chart.setOption(optionRef.value);
+  });
+  
+  // 监听鼠标离开事件，恢复默认文字
+  chart.on("mouseout", function () {
+    currentHoverName.value = "";
+    chart.setOption(optionRef.value);
+  });
+  
   chart.on("click", function (param) {
     // 根据queryField动态设置查询参数
     query.value = {

@@ -8,6 +8,7 @@
       :selected-count="selectedFlows.length"
       :is-selection-mode="isSelectionMode"
       :has-filters="hasFilters"
+      :is-importing="isClassifying"
       @open-import-export="importDrawer = true"
       @create-new="openCreateDialog"
       @enter-selection-mode="enterSelectionMode"
@@ -57,6 +58,7 @@
     <!-- 导入导出抽屉 -->
     <FlowsImportDrawer
       :show="importDrawer"
+      :is-importing="isClassifying"
       @close="importDrawer = false"
       @import-alipay="openCsvImport('alipay')"
       @import-wechat="openCsvImport('wxpay')"
@@ -69,7 +71,7 @@
       @import-template="importCsvTemplate"
     />
 
-    <!-- 自动识别确认对话框 -->
+    <!-- AI识别确认对话框 -->
     <div
       v-if="showClassifyConfirmDialog"
       class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
@@ -135,46 +137,45 @@
       </div>
     </div>
 
-    <!-- 识别进度对话框 -->
+    <!-- 右下角识别进度通知窗口 -->
     <div
       v-if="showClassifyProgressDialog"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4"
+      class="fixed bottom-4 right-4 z-50 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700"
     >
-      <div
-        class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md flex flex-col"
-      >
-        <div
-          class="px-6 py-4 border-b border-gray-200 dark:border-gray-600 flex justify-between items-center"
-        >
-          <h3 class="text-lg font-semibold text-green-950 dark:text-white">
+      <div class="p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-semibold text-green-950 dark:text-white">
             AI智能识别中
           </h3>
+          <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
         </div>
 
-        <div class="px-6 py-6 space-y-4">
-          <div class="flex items-center justify-center">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          </div>
-          <div class="text-center space-y-2">
-            <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
-              正在识别交易类型...
-            </p>
-            <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">
-              {{ classifyProgress }}%
-            </p>
+        <div class="space-y-2">
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-gray-600 dark:text-gray-400">识别进度</span>
+            <span class="font-bold text-blue-600 dark:text-blue-400">{{ classifyProgress }}%</span>
           </div>
           
           <!-- 进度条 -->
-          <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+          <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
             <div
-              class="bg-blue-600 h-3 rounded-full transition-all duration-300"
+              class="bg-blue-600 h-2 rounded-full transition-all duration-300"
               :style="{ width: classifyProgress + '%' }"
             ></div>
           </div>
           
-          <div class="text-center text-xs text-gray-500 dark:text-gray-400">
+          <div class="text-xs text-gray-500 dark:text-gray-400 text-center">
             已识别 {{ classifyCompleted }} / {{ classifyTotal }} 条流水
           </div>
+        </div>
+
+        <div class="flex justify-end pt-2">
+          <button
+            @click="cancelClassify"
+            class="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 rounded text-xs font-medium transition-colors"
+          >
+            取消识别
+          </button>
         </div>
       </div>
     </div>
@@ -452,6 +453,7 @@ const csvDatas = ref<Record<number, any>[]>([]);
 const fileType = ref("none");
 const titleRowIndex = ref(0);
 const isClassifying = ref(false);
+const isClassifyCancelled = ref(false);
 const useAutoClassify = ref(true); // 是否使用自动识别
 const classifyProgress = ref(0); // 识别进度 0-100
 const classifyTotal = ref(0); // 需要识别的总数
@@ -1118,14 +1120,28 @@ const confirmWithoutClassify = () => {
  */
 const confirmWithClassify = () => {
   useAutoClassify.value = true;
+  isClassifyCancelled.value = false;
   showClassifyConfirmDialog.value = false;
   showClassifyProgressDialog.value = true;
   // 开始识别
   autoClassifyFlows().catch((error) => {
     console.error("自动识别类型失败:", error);
     showClassifyProgressDialog.value = false;
-    showFlowExcelImportDialog.value = true;
+    if (!isClassifyCancelled.value) {
+      showFlowExcelImportDialog.value = true;
+    }
   });
+};
+
+/**
+ * 取消识别
+ */
+const cancelClassify = () => {
+  isClassifyCancelled.value = true;
+  isClassifying.value = false;
+  showClassifyProgressDialog.value = false;
+  // 取消后不显示预览，直接关闭所有窗口
+  showFlowExcelImportDialog.value = false;
 };
 
 /**
@@ -1139,6 +1155,7 @@ const autoClassifyFlows = async () => {
   });
 
   isClassifying.value = true;
+  isClassifyCancelled.value = false;
   
   if (flowsToClassify.length === 0) {
     console.log("没有可识别的流水（缺少名称或描述）");
@@ -1172,6 +1189,16 @@ const autoClassifyFlows = async () => {
     const results: Array<ClassificationResult | null> = [];
 
     for (let i = 0; i < transactions.length; i += batchSize) {
+      // 检查是否取消
+      if (isClassifyCancelled.value) {
+        console.log("用户取消了识别");
+        isClassifying.value = false;
+        showClassifyProgressDialog.value = false;
+        // 取消后不显示预览，直接关闭
+        showFlowExcelImportDialog.value = false;
+        return;
+      }
+
       const batch = transactions.slice(i, i + batchSize);
       
       const batchPromises = batch.map((tx) => {
@@ -1220,6 +1247,10 @@ const autoClassifyFlows = async () => {
     console.error("自动识别类型失败:", error);
     // 失败时静默处理，保持原样（当前策略）
   } finally {
+    // 如果已取消，不执行后续操作
+    if (isClassifyCancelled.value) {
+      return;
+    }
     isClassifying.value = false;
     classifyProgress.value = 100;
     // 确保关闭进度窗口，显示预览窗口

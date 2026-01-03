@@ -139,20 +139,18 @@
     </div>
 
     <!-- Calendar Grid -->
-    <div class="grid grid-cols-7 gap-px bg-green-100 dark:bg-black">
+    <div class="grid grid-cols-7 gap-px bg-gray-200 dark:bg-black">
       <div
         v-for="date in calendarDates"
         :key="date.key"
-        class="min-h-36 p-4 flex flex-col relative transition-all duration-200 hover:bg-green-50 dark:hover:bg-green-800/20 hover:-translate-y-0.5 hover:shadow-lg border border-green-50 dark:border-green-900"
+        class="min-h-36 p-4 flex flex-col relative transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-800/20 hover:-translate-y-0.5 hover:shadow-lg border border-green-200 dark:border-green-700"
         :class="{
-          'bg-green-50 dark:bg-transparent text-gray-400 dark:text-green-700':
+          'bg-gray-50 dark:bg-transparent text-gray-400 dark:text-gray-600':
             !date.isCurrentMonth,
-          'bg-green-100 dark:bg-green-950/50':
-            date.isCurrentMonth && !date.isWeekend && !date.isToday,
-          'bg-green-200 dark:bg-green-800/50 border-2 border-green-400 dark:border-green-700':
+          'bg-white dark:bg-gray-900/50':
+            date.isCurrentMonth && !date.isToday,
+          'bg-gray-100 dark:bg-gray-800/50 border-2 border-green-400 dark:border-green-600':
             date.isToday,
-          'bg-green-50/50 dark:bg-green-950/30':
-            date.isWeekend && date.isCurrentMonth,
         }"
       >
         <!-- Date and Add Button -->
@@ -198,7 +196,7 @@
           <div
             v-if="getDateIncome(date.dateString)"
             @click="clickDay(date.dateString, '收入')"
-            class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md bg-blue-300/70 dark:bg-blue-500/50 text-blue-900 dark:text-blue-100 hover:bg-blue-400/80 dark:hover:bg-blue-500/60"
+            class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-800/50"
           >
             <span class="text-lg font-bold">+</span>
             <span>{{ getDateIncome(date.dateString).toFixed(2) }}</span>
@@ -457,11 +455,9 @@ const getDateExpense = (dateString: string): number => {
 
 const getExpenseClass = (amount: number): string => {
   if (!amount || amount === 0) {
-    return "bg-green-100/50 dark:bg-transparent dark:border dark:border-green-800/30 text-gray-600 dark:text-green-500/50 hover:bg-green-100 dark:hover:bg-green-950/15";
-  } else if (amount >= 1000) {
-    return "bg-red-300/70 dark:bg-red-500/50 text-red-900 dark:text-red-100 hover:bg-red-400/80 dark:hover:bg-red-500/60";
+    return "bg-gray-100/50 dark:bg-transparent dark:border dark:border-gray-800/30 text-gray-600 dark:text-gray-500/50 hover:bg-gray-100 dark:hover:bg-gray-950/15";
   } else {
-    return "bg-orange-300/70 dark:bg-orange-500/50 text-orange-900 dark:text-orange-100 hover:bg-orange-400/80 dark:hover:bg-orange-500/60";
+    return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-800/50";
   }
 };
 

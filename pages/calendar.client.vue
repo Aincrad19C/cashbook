@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-green-50 dark:bg-green-950/10 p-0 md:p-4">
+  <div class="bg-white dark:bg-gray-900 p-0 md:p-4">
     <!-- Header Section -->
     <div class="max-w-7xl mx-auto">
       <!-- Summary Cards -->
@@ -53,12 +53,12 @@
             </div>
             <div class="md:ml-4 text-center md:text-left">
               <p
-                class="text-xs md:text-sm font-medium text-green-600 dark:text-green-400"
+                class="text-xs md:text-sm font-medium text-red-800 dark:text-red-300"
               >
                 总支出
               </p>
               <p
-                class="text-sm md:text-2xl font-bold text-red-700 dark:text-red-300"
+                class="text-sm md:text-2xl font-bold text-red-600 dark:text-red-400"
               >
                 {{ getOutMonth().toFixed(2) }}
               </p>
@@ -73,36 +73,21 @@
           <div class="flex items-center flex-row space-x-2">
             <div class="flex-shrink-0 mb-0">
               <div
-                class="w-8 h-8 md:w-12 md:h-12 rounded-lg flex items-center justify-center"
-                :class="
-                  balance >= 0
-                    ? 'bg-blue-100 dark:bg-blue-900'
-                    : 'bg-orange-100 dark:bg-orange-900'
-                "
+                class="w-8 h-8 md:w-12 md:h-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center"
               >
                 <ScaleIcon
-                  class="w-4 h-4 md:w-6 md:h-6"
-                  :class="
-                    balance >= 0
-                      ? 'text-blue-700 dark:text-blue-300'
-                      : 'text-orange-700 dark:text-orange-300'
-                  "
+                  class="w-4 h-4 md:w-6 md:h-6 text-blue-600 dark:text-blue-400"
                 />
               </div>
             </div>
             <div class="md:ml-4 text-center md:text-left">
               <p
-                class="text-xs md:text-sm font-medium text-green-600 dark:text-green-400"
+                class="text-xs md:text-sm font-medium text-blue-800 dark:text-blue-300"
               >
                 结余
               </p>
               <p
-                class="text-sm md:text-2xl font-bold"
-                :class="
-                  balance >= 0
-                    ? 'text-blue-700 dark:text-blue-300'
-                    : 'text-orange-700 dark:text-orange-300'
-                "
+                class="text-sm md:text-2xl font-bold text-blue-600 dark:text-blue-400"
               >
                 {{ balance.toFixed(2) }}
               </p>
@@ -113,7 +98,7 @@
 
       <!-- Calendar -->
       <div
-        class="bg-white dark:bg-green-800/10 border border-green-100 dark:border-green-800 w-full overflow-hidden"
+        class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 w-full overflow-hidden"
         :class="
           isMobile
             ? 'rounded-lg shadow-md'

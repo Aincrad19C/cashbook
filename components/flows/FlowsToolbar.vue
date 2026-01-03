@@ -7,11 +7,18 @@
       <div class="flex flex-wrap gap-2">
         <button
           @click="$emit('openImportExport')"
-          class="flex-1 md:flex-none px-2 py-1 md:px-3 md:py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-sm font-medium"
+          :disabled="isImporting"
+          :class="[
+            'flex-1 md:flex-none px-2 py-1 md:px-3 md:py-2 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-sm font-medium',
+            isImporting
+              ? 'bg-gray-400 dark:bg-gray-600 text-gray-200 dark:text-gray-400 cursor-not-allowed'
+              : 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer'
+          ]"
+          :title="isImporting ? '正在导入' : ''"
         >
           <CloudArrowDownIcon class="w-4 h-4" />
-          <span class="hidden sm:inline">导入导出</span>
-          <span class="sm:hidden">导入</span>
+          <span class="hidden sm:inline">{{ isImporting ? '正在导入' : '导入导出' }}</span>
+          <span class="sm:hidden">{{ isImporting ? '导入中' : '导入' }}</span>
         </button>
         <button
           @click="$emit('createNew')"
@@ -131,9 +138,10 @@ interface Props {
   selectedCount: number;
   isSelectionMode: boolean;
   hasFilters?: boolean;
+  isImporting?: boolean;
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
 defineEmits<{
   openImportExport: [];

@@ -37,6 +37,16 @@
             />
           </div>
 
+          <!-- 取消导入按钮 -->
+          <button
+            @click="cancelImport"
+            :disabled="uploading"
+            class="px-4 py-2 bg-gray-300 hover:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-500 disabled:bg-gray-400 disabled:cursor-not-allowed text-gray-700 dark:text-gray-200 rounded-lg transition-colors duration-200 flex items-center gap-2 text-sm font-medium"
+          >
+            <XMarkIcon class="h-4 w-4" />
+            取消导入
+          </button>
+
           <!-- 确定导入按钮 -->
           <button
             @click="submitUpload"
@@ -55,7 +65,8 @@
 
 <script setup lang="ts">
 import { onMounted, ref, watch } from "vue";
-import { CloudArrowUpIcon } from "@heroicons/vue/24/outline";
+import { CloudArrowUpIcon, XMarkIcon } from "@heroicons/vue/24/outline";
+import { showFlowExcelImportDialog } from "~/utils/flag";
 
 const { items, tableHead, tableBody, successCallback } = defineProps([
   "items",
@@ -157,6 +168,11 @@ onMounted(() => {
   
   renderTableBody();
 });
+
+// 取消导入
+const cancelImport = () => {
+  showFlowExcelImportDialog.value = false;
+};
 
 // 确定提交
 const submitUpload = () => {

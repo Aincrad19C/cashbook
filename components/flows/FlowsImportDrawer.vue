@@ -63,7 +63,13 @@
           <div class="space-y-2">
             <button
               @click="$emit('importAlipay')"
-              class="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition-colors flex items-center gap-2"
+              :disabled="isImporting"
+              :class="[
+                'w-full px-3 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2',
+                isImporting
+                  ? 'bg-gray-400 dark:bg-gray-600 text-gray-200 dark:text-gray-400 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer'
+              ]"
             >
               <svg
                 class="w-4 h-4"
@@ -82,7 +88,13 @@
             </button>
             <button
               @click="$emit('importWechat')"
-              class="w-full px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition-colors flex items-center gap-2"
+              :disabled="isImporting"
+              :class="[
+                'w-full px-3 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2',
+                isImporting
+                  ? 'bg-gray-400 dark:bg-gray-600 text-gray-200 dark:text-gray-400 cursor-not-allowed'
+                  : 'bg-green-600 hover:bg-green-700 text-white cursor-pointer'
+              ]"
             >
               <svg
                 class="w-4 h-4"
@@ -101,7 +113,13 @@
             </button>
             <button
               @click="$emit('importJd')"
-              class="w-full px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition-colors flex items-center gap-2"
+              :disabled="isImporting"
+              :class="[
+                'w-full px-3 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2',
+                isImporting
+                  ? 'bg-gray-400 dark:bg-gray-600 text-gray-200 dark:text-gray-400 cursor-not-allowed'
+                  : 'bg-red-600 hover:bg-red-700 text-white cursor-pointer'
+              ]"
             >
               <svg
                 class="w-4 h-4"
@@ -146,7 +164,13 @@
           <div class="space-y-2">
             <button
               @click="$emit('customImport')"
-              class="w-full px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded text-sm font-medium transition-colors flex items-center gap-2"
+              :disabled="isImporting"
+              :class="[
+                'w-full px-3 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2',
+                isImporting
+                  ? 'bg-gray-400 dark:bg-gray-600 text-gray-200 dark:text-gray-400 cursor-not-allowed'
+                  : 'bg-purple-600 hover:bg-purple-700 text-white cursor-pointer'
+              ]"
             >
               <svg
                 class="w-4 h-4"
@@ -165,7 +189,13 @@
             </button>
             <button
               @click="$emit('importJson')"
-              class="w-full px-3 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded text-sm font-medium transition-colors flex items-center gap-2"
+              :disabled="isImporting"
+              :class="[
+                'w-full px-3 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2',
+                isImporting
+                  ? 'bg-gray-400 dark:bg-gray-600 text-gray-200 dark:text-gray-400 cursor-not-allowed'
+                  : 'bg-cyan-600 hover:bg-cyan-700 text-white cursor-pointer'
+              ]"
             >
               <svg
                 class="w-4 h-4"
@@ -210,7 +240,13 @@
           <div class="space-y-2">
             <button
               @click="$emit('exportCsv')"
-              class="w-full px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded text-sm font-medium transition-colors flex items-center gap-2"
+              :disabled="isImporting"
+              :class="[
+                'w-full px-3 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2',
+                isImporting
+                  ? 'bg-gray-400 dark:bg-gray-600 text-gray-200 dark:text-gray-400 cursor-not-allowed'
+                  : 'bg-purple-600 hover:bg-purple-700 text-white cursor-pointer'
+              ]"
             >
               <svg
                 class="w-4 h-4"
@@ -229,7 +265,13 @@
             </button>
             <button
               @click="$emit('exportJson')"
-              class="w-full px-3 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded text-sm font-medium transition-colors flex items-center gap-2"
+              :disabled="isImporting"
+              :class="[
+                'w-full px-3 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2',
+                isImporting
+                  ? 'bg-gray-400 dark:bg-gray-600 text-gray-200 dark:text-gray-400 cursor-not-allowed'
+                  : 'bg-cyan-600 hover:bg-cyan-700 text-white cursor-pointer'
+              ]"
             >
               <svg
                 class="w-4 h-4"
@@ -281,7 +323,13 @@
           <div class="space-y-2">
             <button
               @click="$emit('importTemplate')"
-              class="w-full px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded text-sm font-medium transition-colors flex items-center gap-2"
+              :disabled="isImporting"
+              :class="[
+                'w-full px-3 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2',
+                isImporting
+                  ? 'bg-gray-400 dark:bg-gray-600 text-gray-200 dark:text-gray-400 cursor-not-allowed'
+                  : 'bg-amber-600 hover:bg-amber-700 text-white cursor-pointer'
+              ]"
             >
               <svg
                 class="w-4 h-4"
@@ -348,9 +396,10 @@
 <script setup lang="ts">
 interface Props {
   show: boolean;
+  isImporting?: boolean;
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
 defineEmits<{
   close: [];

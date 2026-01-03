@@ -79,7 +79,7 @@ const handleNavigate = (menu: Menu) => {
   <!-- Sidebar -->
   <aside
     :class="[
-      'fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-black border-r border-green-100 dark:border-green-900 transform transition-transform duration-200 ease-in-out',
+      'fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-black border-r-2 border-green-400 dark:border-green-500 transform transition-transform duration-200 ease-in-out',
       isMobile
         ? isOpen
           ? 'translate-x-0'
