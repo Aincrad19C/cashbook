@@ -956,36 +956,24 @@ const deleteItems = () => {
     confirm: () => {
       // 将主记录的特殊id转换为实际的id列表
       const actualIds = convertMainIdsToActualIds(selectedFlows.value);
-      // 先获取要删除的记录（用于撤销）
       doApi
-        .post("api/entry/flow/list", {
-          ...flowQuery.value,
+        .post("api/entry/flow/dels", {
+          ids: actualIds,
           bookId: localStorage.getItem("bookId"),
         })
-        .then((allFlows: any[]) => {
-          const flowsToDelete = allFlows.filter((f: any) => actualIds.includes(f.id));
-          doApi
-            .post("api/entry/flow/dels", {
-              ids: actualIds,
-              bookId: localStorage.getItem("bookId"),
-            })
-            .then(() => {
-              // 保存批量删除操作到撤销栈
-              saveToUndoStack('delete', {
-                flows: flowsToDelete,
-              });
-              Alert.success("删除成功");
-              selectedFlows.value = [];
-              doQuery();
-              // 删除后退出选择模式
-              exitSelectionMode();
-            })
-            .catch(() => {
-              Alert.error("删除失败");
-            });
+        .then((res: any) => {
+          // 保存批量删除操作到撤销栈
+          saveToUndoStack('delete', {
+            flows: res.flows || [],
+          });
+          Alert.success("删除成功");
+          selectedFlows.value = [];
+          doQuery();
+          // 删除后退出选择模式
+          exitSelectionMode();
         })
         .catch(() => {
-          Alert.error("获取数据失败");
+          Alert.error("删除失败");
         });
     },
   });
@@ -1136,8 +1124,8 @@ const deleteItem = (item: any) => {
   // 如果是主记录，提示删除整个合并组
   const isGroupMain = item.isGroupMain === true;
   const confirmContent = isGroupMain 
-    ? `确定删除合并记录及其所有子记录吗？此操作不可撤销！`
-    : `确定删除流水 【${item.name}:${item.money}】吗?`;
+    ? `确定删除合并记录及其所有子记录吗？`
+    : `确定删除该条流水吗?`;
   
   Confirm.open({
     title: "删除确认",

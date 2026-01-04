@@ -124,6 +124,9 @@ export default defineEventHandler(async (event) => {
                   description: flow.description,
                   attribution: flow.attribution,
                   groupId: flow.groupId,
+                  invoice: flow.invoice || null,
+                  origin: flow.origin || null,
+                  eliminate: flow.eliminate || 0,
                 },
               });
             }
@@ -179,8 +182,33 @@ export default defineEventHandler(async (event) => {
               description: data.flow.description,
               attribution: data.flow.attribution,
               groupId: data.flow.groupId,
+              invoice: data.flow.invoice || null,
+              origin: data.flow.origin || null,
+              eliminate: data.flow.eliminate || 0,
             },
           });
+        } else if (data.flows && Array.isArray(data.flows)) {
+          // 批量删除恢复
+          for (const flow of data.flows) {
+            await prisma.flow.create({
+              data: {
+                userId: flow.userId,
+                bookId: flow.bookId,
+                day: flow.day,
+                flowType: flow.flowType,
+                industryType: flow.industryType,
+                payType: flow.payType,
+                money: flow.money,
+                name: flow.name,
+                description: flow.description,
+                attribution: flow.attribution,
+                groupId: flow.groupId,
+                invoice: flow.invoice || null,
+                origin: flow.origin || null,
+                eliminate: flow.eliminate || 0,
+              },
+            });
+          }
         }
         return success({ message: '撤销删除成功' });
       }

@@ -39,15 +39,11 @@ export default defineEventHandler(async (event) => {
     return error("Not Find ID");
   }
   
-  // 查询要删除的记录，检查是否有合并组
+  // 查询要删除的完整记录（用于撤销）
   const flowsToDelete = await prisma.flow.findMany({
     where: {
       id: { in: ids.map((id: any) => Number(id)) },
       bookId: String(bookId),
-    },
-    select: {
-      id: true,
-      groupId: true,
     },
   });
   
@@ -92,5 +88,8 @@ export default defineEventHandler(async (event) => {
     }
   }
   
-  return success(deleted);
+  return success({
+    ...deleted,
+    flows: flowsToDelete, // 返回完整的记录数据用于撤销
+  });
 });
