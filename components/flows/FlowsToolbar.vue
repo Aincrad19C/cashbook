@@ -111,18 +111,6 @@
         <!-- 筛选操作 -->
         <div class="flex gap-2">
           <button
-            @click="$emit('openSearch')"
-            :class="[
-              'flex-1 sm:flex-none px-2 py-1 md:px-3 md:py-2 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-sm font-medium',
-              hasFilters
-                ? 'bg-orange-600 hover:bg-orange-700 text-white'
-                : 'bg-blue-600 hover:bg-blue-700 text-white'
-            ]"
-          >
-            <FunnelIcon class="w-4 h-4" />
-            筛选
-          </button>
-          <button
             @click="$emit('undo')"
             :disabled="!canUndo"
             :class="[
@@ -135,6 +123,18 @@
             <ArrowUturnLeftIcon class="w-4 h-4" />
             <span class="hidden sm:inline">撤销</span>
             <span class="sm:hidden">撤销</span>
+          </button>
+          <button
+            @click="$emit('openSearch')"
+            :class="[
+              'flex-1 sm:flex-none px-2 py-1 md:px-3 md:py-2 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-sm font-medium',
+              hasFilters
+                ? 'bg-orange-600 hover:bg-orange-700 text-white'
+                : 'bg-blue-600 hover:bg-blue-700 text-white'
+            ]"
+          >
+            <FunnelIcon class="w-4 h-4" />
+            筛选
           </button>
           <button
             @click="$emit('resetQuery')"
