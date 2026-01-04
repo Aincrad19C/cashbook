@@ -123,6 +123,20 @@
             筛选
           </button>
           <button
+            @click="$emit('undo')"
+            :disabled="!canUndo"
+            :class="[
+              'flex-1 sm:flex-none px-2 py-1 md:px-3 md:py-2 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-sm font-medium',
+              canUndo
+                ? 'bg-yellow-600 hover:bg-yellow-700 text-white cursor-pointer'
+                : 'bg-gray-400 dark:bg-gray-600 text-gray-200 dark:text-gray-400 cursor-not-allowed opacity-60'
+            ]"
+          >
+            <ArrowUturnLeftIcon class="w-4 h-4" />
+            <span class="hidden sm:inline">撤销</span>
+            <span class="sm:hidden">撤销</span>
+          </button>
+          <button
             @click="$emit('resetQuery')"
             class="flex-1 sm:flex-none px-2 py-1 md:px-3 md:py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-sm font-medium"
           >
@@ -147,6 +161,7 @@ import {
   XMarkIcon,
   ArrowsPointingInIcon,
   ArrowsPointingOutIcon,
+  ArrowUturnLeftIcon,
 } from "@heroicons/vue/24/outline";
 
 interface Props {
@@ -154,6 +169,7 @@ interface Props {
   isSelectionMode: boolean;
   hasFilters?: boolean;
   isImporting?: boolean;
+  canUndo?: boolean;
   selectedItemsInfo?: {
     hasMerged: boolean;
     hasUnmerged: boolean;
@@ -165,6 +181,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  canUndo: false,
   selectedItemsInfo: () => ({
     hasMerged: false,
     hasUnmerged: false,
@@ -186,5 +203,6 @@ defineEmits<{
   unmergeSelected: [];
   openSearch: [];
   resetQuery: [];
+  undo: [];
 }>();
 </script>

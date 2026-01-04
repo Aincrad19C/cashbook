@@ -296,10 +296,11 @@ useEscapeKey(() => {
   }
 }, showFlowEditDialog);
 
-const { title, flow, successCallback } = defineProps([
+const { title, flow, successCallback, onOperationSuccess } = defineProps([
   "title",
   "flow",
   "successCallback",
+  "onOperationSuccess",
 ]);
 
 // 表单弹窗标题选项
@@ -341,6 +342,17 @@ onMounted(() => {
     flowEdit.value = { ...flow };
     if (flowEdit.value.day) {
       flowEdit.value.day = flowEdit.value.day;
+    }
+    // 保存原始数据用于撤销
+    if (formTitle[1] === title) {
+      flowEdit.value.originalDay = flow.day;
+      flowEdit.value.originalFlowType = flow.flowType;
+      flowEdit.value.originalIndustryType = flow.industryType;
+      flowEdit.value.originalPayType = flow.payType;
+      flowEdit.value.originalMoney = flow.money;
+      flowEdit.value.originalName = flow.name;
+      flowEdit.value.originalDescription = flow.description;
+      flowEdit.value.originalAttribution = flow.attribution;
     }
   }
   if (formTitle[0] === title) {
@@ -635,6 +647,13 @@ const createOne = () => {
     })
     .then((res) => {
       if (res.id) {
+        // 通知父组件操作成功，用于撤销功能
+        if (onOperationSuccess) {
+          onOperationSuccess({
+            type: 'add',
+            data: { id: res.id },
+          });
+        }
         successCallback(res);
         Alert.success("新增成功!");
         showFlowEditDialog.value = false;
@@ -672,7 +691,24 @@ const updateOne = () => {
     
     doApi
       .post("api/entry/flow/updateMain", updateData)
-      .then((res) => {
+      .then(async (res) => {
+        // 获取修改前的数据用于撤销
+        if (onOperationSuccess) {
+          try {
+            const oldData = await doApi.post("api/entry/flow/getMain", {
+              groupId: flowEdit.value.groupId,
+            });
+            onOperationSuccess({
+              type: 'updateMain',
+              data: {
+                groupId: flowEdit.value.groupId,
+                ...oldData,
+              },
+            });
+          } catch (e) {
+            console.error("获取主记录数据失败:", e);
+          }
+        }
         successCallback(res);
         Alert.success("更新成功!");
         showFlowEditDialog.value = false;
@@ -703,6 +739,23 @@ const updateOne = () => {
     .post<Flow>("api/entry/flow/update", updateData)
     .then((res) => {
       if (res.id) {
+        // 通知父组件操作成功，用于撤销功能
+        if (onOperationSuccess) {
+          onOperationSuccess({
+            type: 'update',
+            data: {
+              id: flowEdit.value.id,
+              day: flowEdit.value.originalDay,
+              flowType: flowEdit.value.originalFlowType,
+              industryType: flowEdit.value.originalIndustryType,
+              payType: flowEdit.value.originalPayType,
+              money: flowEdit.value.originalMoney,
+              name: flowEdit.value.originalName,
+              description: flowEdit.value.originalDescription,
+              attribution: flowEdit.value.originalAttribution,
+            },
+          });
+        }
         successCallback(res);
         Alert.success("更新成功!");
         showFlowEditDialog.value = false;

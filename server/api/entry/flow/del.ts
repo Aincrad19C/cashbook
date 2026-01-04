@@ -43,6 +43,24 @@ export default defineEventHandler(async (event) => {
   
   // 如果是主记录删除，删除整个合并组
   if (isGroupMain === true && groupId) {
+    // 先获取所有要删除的记录（用于撤销）
+    const flowsToDelete = await prisma.flow.findMany({
+      where: {
+        groupId: groupId,
+        bookId,
+      },
+    });
+    
+    // 获取主记录（用于撤销）
+    let groupMain = null;
+    try {
+      groupMain = await prisma.flowGroupMain.findUnique({
+        where: { groupId: groupId },
+      });
+    } catch (e: any) {
+      // 忽略错误
+    }
+    
     // 删除所有子记录
     const deletedCount = await prisma.flow.deleteMany({
       where: {
@@ -68,7 +86,9 @@ export default defineEventHandler(async (event) => {
     return success({ 
       deleted: true, 
       groupDeleted: true,
-      count: deletedCount.count 
+      count: deletedCount.count,
+      flows: flowsToDelete,
+      groupMain: groupMain,
     });
   }
   

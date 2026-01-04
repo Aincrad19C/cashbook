@@ -20,6 +20,8 @@
       @unmerge-selected="unmergeSelected"
       @open-search="searchDrawer = true"
       @reset-query="resetQuery"
+      @undo="handleUndo"
+      :can-undo="canUndo"
     />
 
 
@@ -249,7 +251,7 @@
     <!-- JSON导入对话框 -->
     <FlowJsonImportDialog
       v-if="showFlowJsonImportDialog"
-      :success-callback="doQuery"
+      :success-callback="handleEditSuccess"
     />
 
     <!-- 批量修改类型对话框 -->
@@ -385,7 +387,8 @@
       v-if="showFlowEditDialog"
       :title="dialogFormTitle"
       :flow="selectedFlow"
-      :success-callback="doQuery"
+      :success-callback="handleEditSuccess"
+      :on-operation-success="handleOperationSuccess"
     />
 
   </div>
@@ -486,6 +489,65 @@ const batchChange = ref<any>({
   payType: "",
   attribution: "",
 });
+
+// 撤销栈
+interface UndoOperation {
+  type: 'add' | 'update' | 'updateMain' | 'delete' | 'merge' | 'unmerge' | 'batchUpdate';
+  data: any; // 操作前的数据或操作信息
+  timestamp: number;
+}
+
+const undoStack = ref<UndoOperation[]>([]);
+const canUndo = computed(() => undoStack.value.length > 0);
+
+// 保存操作到撤销栈
+const saveToUndoStack = (type: UndoOperation['type'], data: any) => {
+  undoStack.value.push({
+    type,
+    data,
+    timestamp: Date.now(),
+  });
+  // 限制撤销栈大小，最多保存10个操作
+  if (undoStack.value.length > 10) {
+    undoStack.value.shift();
+  }
+};
+
+// 处理撤销
+const handleUndo = async () => {
+  if (undoStack.value.length === 0) {
+    Alert.error("没有可撤销的操作");
+    return;
+  }
+
+  const operation = undoStack.value.pop();
+  if (!operation) {
+    return;
+  }
+
+  try {
+    await doApi.post("api/entry/flow/undo", {
+      operation,
+      bookId: localStorage.getItem("bookId"),
+    });
+    Alert.success("撤销成功");
+    doQuery();
+  } catch (error: any) {
+    Alert.error(error?.message || "撤销失败");
+    // 撤销失败时，将操作重新放回栈中
+    undoStack.value.push(operation);
+  }
+};
+
+// 处理编辑成功回调
+const handleEditSuccess = (res: any) => {
+  doQuery();
+};
+
+// 处理操作成功回调（用于撤销功能）
+const handleOperationSuccess = (operation: { type: string; data: any }) => {
+  saveToUndoStack(operation.type as any, operation.data);
+};
 
 // 获取数据列表
 const nameList = ref<string[]>([]);
@@ -894,20 +956,36 @@ const deleteItems = () => {
     confirm: () => {
       // 将主记录的特殊id转换为实际的id列表
       const actualIds = convertMainIdsToActualIds(selectedFlows.value);
+      // 先获取要删除的记录（用于撤销）
       doApi
-        .post("api/entry/flow/dels", {
-          ids: actualIds,
+        .post("api/entry/flow/list", {
+          ...flowQuery.value,
           bookId: localStorage.getItem("bookId"),
         })
-        .then(() => {
-          Alert.success("删除成功");
-          selectedFlows.value = [];
-          doQuery();
-          // 删除后退出选择模式
-          exitSelectionMode();
+        .then((allFlows: any[]) => {
+          const flowsToDelete = allFlows.filter((f: any) => actualIds.includes(f.id));
+          doApi
+            .post("api/entry/flow/dels", {
+              ids: actualIds,
+              bookId: localStorage.getItem("bookId"),
+            })
+            .then(() => {
+              // 保存批量删除操作到撤销栈
+              saveToUndoStack('delete', {
+                flows: flowsToDelete,
+              });
+              Alert.success("删除成功");
+              selectedFlows.value = [];
+              doQuery();
+              // 删除后退出选择模式
+              exitSelectionMode();
+            })
+            .catch(() => {
+              Alert.error("删除失败");
+            });
         })
         .catch(() => {
-          Alert.error("删除失败");
+          Alert.error("获取数据失败");
         });
     },
   });
@@ -945,7 +1023,12 @@ const mergeSelected = () => {
           ids: actualIds,
           bookId: localStorage.getItem("bookId"),
         })
-        .then(() => {
+        .then((res: any) => {
+          // 保存合并操作到撤销栈
+          saveToUndoStack('merge', {
+            ids: actualIds,
+            groupId: res.groupId,
+          });
           Alert.success("合并成功");
           selectedFlows.value = [];
           doQuery();
@@ -970,20 +1053,45 @@ const unmergeSelected = () => {
     title: "取消合并确认",
     content: `确定要取消这个合并组吗？合并的记录将恢复为独立记录。`,
     confirm: () => {
+      const groupId = selectedItemsInfo.value.groupId;
+      // 先获取合并组的信息（用于撤销）
       doApi
-        .post("api/entry/flow/unmerge", {
-          groupId: selectedItemsInfo.value.groupId,
+        .post("api/entry/flow/list", {
+          ...flowQuery.value,
           bookId: localStorage.getItem("bookId"),
         })
-        .then(() => {
-          Alert.success("取消合并成功");
-          selectedFlows.value = [];
-          doQuery();
-          // 取消合并后退出选择模式
-          exitSelectionMode();
+        .then(async (allFlows: any[]) => {
+          const groupFlows = allFlows.filter((f: any) => f.groupId === groupId);
+          let groupMain = null;
+          try {
+            groupMain = await doApi.post("api/entry/flow/getMain", { groupId });
+          } catch (e) {
+            // 忽略错误
+          }
+          doApi
+            .post("api/entry/flow/unmerge", {
+              groupId,
+              bookId: localStorage.getItem("bookId"),
+            })
+            .then(() => {
+              // 保存取消合并操作到撤销栈
+              saveToUndoStack('unmerge', {
+                groupId,
+                ids: groupFlows.map((f: any) => f.id),
+                groupMain,
+              });
+              Alert.success("取消合并成功");
+              selectedFlows.value = [];
+              doQuery();
+              // 取消合并后退出选择模式
+              exitSelectionMode();
+            })
+            .catch((error: any) => {
+              Alert.error(error?.message || "取消合并失败");
+            });
         })
-        .catch((error: any) => {
-          Alert.error(error?.message || "取消合并失败");
+        .catch(() => {
+          Alert.error("获取数据失败");
         });
     },
   });
@@ -1048,7 +1156,20 @@ const deleteItem = (item: any) => {
       
       doApi
         .post("api/entry/flow/del", deleteData)
-        .then(() => {
+        .then((res: any) => {
+          // 保存删除操作到撤销栈
+          if (isGroupMain && item.groupId) {
+            saveToUndoStack('delete', {
+              isGroupMain: true,
+              groupId: item.groupId,
+              flows: res.flows || [],
+              groupMain: res.groupMain || null,
+            });
+          } else {
+            saveToUndoStack('delete', {
+              flow: res,
+            });
+          }
           Alert.success("删除成功");
           doQuery();
         })
@@ -1094,22 +1215,44 @@ const confirmBatchChange = () => {
     confirm: () => {
       // 将主记录的特殊id转换为实际的id列表
       const actualIds = convertMainIdsToActualIds(selectedFlows.value);
+      // 先获取要修改的记录（用于撤销）
       doApi
-        .post("api/entry/flow/updates", {
-          ids: actualIds,
+        .post("api/entry/flow/list", {
+          ...flowQuery.value,
           bookId: localStorage.getItem("bookId"),
-          ...batchChange.value,
         })
-        .then(() => {
-          Alert.success("修改成功");
-          closeBatchChangeDialog();
-          selectedFlows.value = [];
-          doQuery();
-          // 批量修改后退出选择模式
-          exitSelectionMode();
+        .then((allFlows: any[]) => {
+          const flowsToUpdate = allFlows.filter((f: any) => actualIds.includes(f.id));
+          doApi
+            .post("api/entry/flow/updates", {
+              ids: actualIds,
+              bookId: localStorage.getItem("bookId"),
+              ...batchChange.value,
+            })
+            .then(() => {
+              // 保存批量修改操作到撤销栈
+              saveToUndoStack('batchUpdate', {
+                flows: flowsToUpdate.map((f: any) => ({
+                  id: f.id,
+                  flowType: f.flowType,
+                  industryType: f.industryType,
+                  payType: f.payType,
+                  attribution: f.attribution,
+                })),
+              });
+              Alert.success("修改成功");
+              closeBatchChangeDialog();
+              selectedFlows.value = [];
+              doQuery();
+              // 批量修改后退出选择模式
+              exitSelectionMode();
+            })
+            .catch(() => {
+              Alert.error("修改失败");
+            });
         })
         .catch(() => {
-          Alert.error("修改失败");
+          Alert.error("获取数据失败");
         });
     },
   });
