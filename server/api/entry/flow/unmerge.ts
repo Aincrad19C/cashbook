@@ -62,6 +62,64 @@ export default defineEventHandler(async (event) => {
     },
   });
 
+  // 如果取消整个组的合并，删除主记录
+  if (groupId) {
+    try {
+      await prisma.flowGroupMain.deleteMany({
+        where: { groupId },
+      });
+    } catch (e: any) {
+      // 如果 flowGroupMain 不存在，说明 Prisma Client 未更新，但不影响正常流程
+      if (e?.message?.includes('flowGroupMain')) {
+        console.log("删除主记录失败，可能 Prisma Client 未更新，请运行: npx prisma generate");
+      } else {
+        console.log("删除主记录失败:", e);
+      }
+    }
+  } else if (Array.isArray(ids) && ids.length > 0) {
+    // 如果只取消部分记录的合并，需要找到这些记录所属的groupId
+    const flowsToUnmerge = await prisma.flow.findMany({
+      where: {
+        id: { in: ids.map((id: any) => Number(id)) },
+        bookId,
+        groupId: { not: null },
+      },
+      select: {
+        groupId: true,
+      },
+    });
+    
+    // 获取所有相关的groupId
+    const affectedGroupIds = [...new Set(flowsToUnmerge.map(f => f.groupId).filter(Boolean))];
+    
+    // 检查每个组是否还有剩余记录
+    for (const gId of affectedGroupIds) {
+      const remainingFlows = await prisma.flow.findMany({
+        where: {
+          bookId,
+          groupId: gId,
+        },
+        take: 1,
+      });
+      
+      // 如果没有剩余记录，删除主记录
+      if (remainingFlows.length === 0) {
+        try {
+          await prisma.flowGroupMain.deleteMany({
+            where: { groupId: gId },
+          });
+        } catch (e: any) {
+          // 如果 flowGroupMain 不存在，说明 Prisma Client 未更新，但不影响正常流程
+          if (e?.message?.includes('flowGroupMain')) {
+            console.log("删除主记录失败，可能 Prisma Client 未更新，请运行: npx prisma generate");
+          } else {
+            console.log("删除主记录失败:", e);
+          }
+        }
+      }
+    }
+  }
+
   return success({
     count: result.count,
   });

@@ -73,6 +73,7 @@ export default defineEventHandler(async (event) => {
 
   // 生成新的合并组ID
   const groupId = randomUUID();
+  const userId = await getUserId(event);
 
   // 更新所有记录，设置相同的groupId
   const result = await prisma.flow.updateMany({
@@ -84,6 +85,46 @@ export default defineEventHandler(async (event) => {
       groupId,
     },
   });
+
+  // 创建主记录（使用默认值，用户可以后续编辑）
+  // 根据收入/支出计算净额
+  const totalMoney = flows.reduce((sum, item) => {
+    const money = Number(item.money) || 0;
+    if (item.flowType === '收入') {
+      return sum + money;
+    } else if (item.flowType === '支出') {
+      return sum - money;
+    }
+    return sum;
+  }, 0);
+  
+  const displayFlowType = totalMoney > 0 ? '收入' : totalMoney < 0 ? '支出' : '不计收支';
+  const flowTypes = [...new Set(flows.map(item => item.flowType).filter(Boolean))];
+  const industryTypes = [...new Set(flows.map(item => item.industryType).filter(Boolean))];
+  const payTypes = [...new Set(flows.map(item => item.payType).filter(Boolean))];
+  
+  try {
+    await prisma.flowGroupMain.create({
+      data: {
+        groupId,
+        bookId,
+        userId,
+        flowType: displayFlowType,
+        industryType: industryTypes.length === 1 ? industryTypes[0] : '其他',
+        payType: payTypes.length === 1 ? payTypes[0] : null,
+        money: Math.abs(totalMoney),
+        name: `合并记录 (${flows.length}条)`,
+        description: '',
+      },
+    });
+  } catch (e: any) {
+    // 如果 flowGroupMain 不存在，说明 Prisma Client 未更新
+    if (e?.message?.includes('flowGroupMain')) {
+      console.error("创建主记录失败，Prisma Client 未更新，请运行: npx prisma generate 和 npx prisma db push");
+    } else {
+      console.log("创建主记录失败:", e);
+    }
+  }
 
   return success({
     groupId,

@@ -68,4 +68,9 @@ const writeFile = (fileName: string, content: any) => {
   link.setAttribute("download", fileName);
   document.body.appendChild(link);
   link.click();
+  // 清理：移除链接和释放URL
+  setTimeout(() => {
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(fileUrl);
+  }, 100);
 };

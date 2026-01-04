@@ -78,19 +78,33 @@
             <span class="hidden sm:inline">类型修改{{ selectedCount > 0 ? `(${selectedCount})` : '' }}</span>
             <span class="sm:hidden">修改{{ selectedCount > 0 ? `(${selectedCount})` : '' }}</span>
           </button>
+          <!-- 合并/取消合并按钮 -->
           <button
-            @click="$emit('mergeSelected')"
-            :disabled="selectedCount < 2"
+            v-if="selectedItemsInfo?.canUnmerge"
+            @click="$emit('unmergeSelected')"
             :class="[
               'flex-1 sm:flex-none px-2 py-1 md:px-3 md:py-2 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-sm font-medium',
-              selectedCount >= 2
+              'bg-teal-600 hover:bg-teal-700 text-white cursor-pointer'
+            ]"
+          >
+            <ArrowsPointingOutIcon class="w-4 h-4" />
+            <span class="hidden sm:inline">取消合并</span>
+            <span class="sm:hidden">取消合并</span>
+          </button>
+          <button
+            v-else
+            @click="$emit('mergeSelected')"
+            :disabled="!selectedItemsInfo?.canMerge"
+            :class="[
+              'flex-1 sm:flex-none px-2 py-1 md:px-3 md:py-2 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-sm font-medium',
+              selectedItemsInfo?.canMerge
                 ? 'bg-teal-600 hover:bg-teal-700 text-white cursor-pointer'
                 : 'bg-gray-400 dark:bg-gray-600 text-gray-200 dark:text-gray-400 cursor-not-allowed opacity-60'
             ]"
           >
             <ArrowsPointingInIcon class="w-4 h-4" />
-            <span class="hidden sm:inline">合并{{ selectedCount >= 2 ? `(${selectedCount})` : '' }}</span>
-            <span class="sm:hidden">合并{{ selectedCount >= 2 ? `(${selectedCount})` : '' }}</span>
+            <span class="hidden sm:inline">合并{{ selectedItemsInfo?.canMerge ? `(${selectedCount})` : '' }}</span>
+            <span class="sm:hidden">合并{{ selectedItemsInfo?.canMerge ? `(${selectedCount})` : '' }}</span>
           </button>
         </div>
 
@@ -132,6 +146,7 @@ import {
   CheckIcon,
   XMarkIcon,
   ArrowsPointingInIcon,
+  ArrowsPointingOutIcon,
 } from "@heroicons/vue/24/outline";
 
 interface Props {
@@ -139,9 +154,26 @@ interface Props {
   isSelectionMode: boolean;
   hasFilters?: boolean;
   isImporting?: boolean;
+  selectedItemsInfo?: {
+    hasMerged: boolean;
+    hasUnmerged: boolean;
+    isSingleMerged: boolean;
+    groupId: string | null;
+    canMerge: boolean;
+    canUnmerge: boolean;
+  };
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  selectedItemsInfo: () => ({
+    hasMerged: false,
+    hasUnmerged: false,
+    isSingleMerged: false,
+    groupId: null,
+    canMerge: false,
+    canUnmerge: false,
+  }),
+});
 
 defineEmits<{
   openImportExport: [];
@@ -151,6 +183,7 @@ defineEmits<{
   deleteSelected: [];
   batchChangeType: [];
   mergeSelected: [];
+  unmergeSelected: [];
   openSearch: [];
   resetQuery: [];
 }>();

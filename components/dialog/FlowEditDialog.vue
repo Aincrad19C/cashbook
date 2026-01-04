@@ -32,8 +32,15 @@
             class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1"
           >
             日期
+            <span v-if="flowEdit.isGroupMain" class="text-xs text-gray-500 ml-2">
+              (合并记录的时间根据子记录自动计算，不可修改)
+            </span>
           </label>
-          <UiDatePicker v-model="flowEdit.day" class="w-full" />
+          <UiDatePicker 
+            v-model="flowEdit.day" 
+            class="w-full" 
+            :disabled="flowEdit.isGroupMain"
+          />
         </div>
 
         <!-- 流水类型 -->
@@ -161,9 +168,26 @@
             />
             <!-- 下拉选项 -->
             <div
-              v-if="showPayTypeDropdown && filteredPayTypeOptions.length > 0"
+              v-if="
+                showPayTypeDropdown &&
+                (filteredPayTypeOptions.length > 0 || payTypeSearchText)
+              "
               class="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-y-auto"
             >
+              <!-- 如果输入的内容不在列表中，显示"创建新类型"选项 -->
+              <div
+                v-if="
+                  payTypeSearchText &&
+                  !filteredPayTypeOptions.some(
+                    (item) => item === payTypeSearchText
+                  )
+                "
+                @mousedown="selectPayType(payTypeSearchText)"
+                class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-600"
+              >
+                <span class="text-blue-500">+ 创建新类型: "{{ payTypeSearchText }}"</span>
+              </div>
+              <!-- 显示匹配的选项 -->
               <div
                 v-for="(item, index) in filteredPayTypeOptions"
                 :key="item"
@@ -526,6 +550,10 @@ const selectIndustryType = (item: string) => {
 const selectPayType = (item: string) => {
   flowEdit.value.payType = item;
   showPayTypeDropdown.value = false;
+  // 如果选择的是新类型，将其添加到选项列表中（仅当前会话）
+  if (item && !payTypeOptions.value.includes(item)) {
+    payTypeOptions.value.push(item);
+  }
 };
 
 // 验证金额输入，只允许数字和小数点
@@ -610,6 +638,8 @@ const createOne = () => {
         successCallback(res);
         Alert.success("新增成功!");
         showFlowEditDialog.value = false;
+        // 刷新类型列表，使新类型立即出现在下拉选项中
+        changeFlowTypes();
       }
     })
     .catch(() => {
@@ -623,10 +653,14 @@ const updateOne = () => {
     Alert.error("请选择要修改的数据");
     return;
   }
-  doApi
-    .post<Flow>("api/entry/flow/update", {
-      id: flowEdit.value.id,
-      day: flowEdit.value.day || new Date().toISOString().split("T")[0],
+  
+  // 如果是主记录，使用专门的updateMain API
+  const isGroupMain = flowEdit.value.isGroupMain === true;
+  
+  if (isGroupMain && flowEdit.value.groupId) {
+    // 主记录使用专门的API
+    const updateData: any = {
+      groupId: flowEdit.value.groupId,
       bookId: localStorage.getItem("bookId") || "",
       flowType: flowEdit.value.flowType,
       industryType: flowEdit.value.industryType,
@@ -634,12 +668,46 @@ const updateOne = () => {
       payType: flowEdit.value.payType,
       name: flowEdit.value.name || "",
       description: flowEdit.value.description,
-    })
+    };
+    
+    doApi
+      .post("api/entry/flow/updateMain", updateData)
+      .then((res) => {
+        successCallback(res);
+        Alert.success("更新成功!");
+        showFlowEditDialog.value = false;
+        // 刷新类型列表，使新类型立即出现在下拉选项中
+        changeFlowTypes();
+      })
+      .catch((err) => {
+        console.log(err);
+        Alert.error("更新出现异常" + err.message);
+      });
+    return;
+  }
+  
+  // 普通记录或子记录的更新
+  const updateData: any = {
+    id: flowEdit.value.id,
+    day: flowEdit.value.day || new Date().toISOString().split("T")[0],
+    bookId: localStorage.getItem("bookId") || "",
+    flowType: flowEdit.value.flowType,
+    industryType: flowEdit.value.industryType,
+    money: Number(flowEdit.value.money),
+    payType: flowEdit.value.payType,
+    name: flowEdit.value.name || "",
+    description: flowEdit.value.description,
+  };
+  
+  doApi
+    .post<Flow>("api/entry/flow/update", updateData)
     .then((res) => {
       if (res.id) {
         successCallback(res);
         Alert.success("更新成功!");
         showFlowEditDialog.value = false;
+        // 刷新类型列表，使新类型立即出现在下拉选项中
+        changeFlowTypes();
       }
     })
     .catch((err) => {

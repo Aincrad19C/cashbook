@@ -9,6 +9,7 @@
       :is-selection-mode="isSelectionMode"
       :has-filters="hasFilters"
       :is-importing="isClassifying"
+      :selected-items-info="selectedItemsInfo"
       @open-import-export="importDrawer = true"
       @create-new="openCreateDialog"
       @enter-selection-mode="enterSelectionMode"
@@ -16,6 +17,7 @@
       @delete-selected="deleteItems"
       @batch-change-type="toChangeTypeBatch"
       @merge-selected="mergeSelected"
+      @unmerge-selected="unmergeSelected"
       @open-search="searchDrawer = true"
       @reset-query="resetQuery"
     />
@@ -537,8 +539,116 @@ const doQuery = () => {
 
 // 计算属性
 const isAllSelected = computed(() => {
+  // 需要计算显示记录数（合并组只算1条）
   const flows = flowPageRef.value?.data || [];
-  return flows.length > 0 && selectedFlows.value.length === flows.length;
+  
+  // 按groupId分组，计算显示记录数
+  const groupMap = new Map<string, any[]>();
+  flows.forEach((flow: any) => {
+    if (flow.groupId) {
+      if (!groupMap.has(flow.groupId)) {
+        groupMap.set(flow.groupId, []);
+      }
+      groupMap.get(flow.groupId)!.push(flow);
+    }
+  });
+  
+  // 计算显示记录数：每个合并组算1条 + 独立记录数
+  const displayCount = groupMap.size + flows.filter((f: any) => !f.groupId).length;
+  
+  if (displayCount === 0) return false;
+  
+  // 检查选中的记录数是否等于显示记录数
+  // 选中的记录中，主记录使用 main-${groupId}，独立记录使用实际id
+  const selectedMainCount = selectedFlows.value.filter((id: any) => String(id).startsWith('main-')).length;
+  const selectedNormalCount = selectedFlows.value.filter((id: any) => !String(id).startsWith('main-')).length;
+  const expectedMainCount = groupMap.size;
+  const expectedNormalCount = flows.filter((f: any) => !f.groupId).length;
+  
+  return selectedMainCount === expectedMainCount && selectedNormalCount === expectedNormalCount;
+});
+
+// 计算选中项的信息（用于判断合并/取消合并按钮状态）
+const selectedItemsInfo = computed(() => {
+  if (!isSelectionMode.value || selectedFlows.value.length === 0) {
+    return {
+      hasMerged: false,
+      hasUnmerged: false,
+      isSingleMerged: false,
+      groupId: null,
+      canMerge: false,
+      canUnmerge: false,
+    };
+  }
+  
+  const flows = flowPageRef.value.data || [];
+  let hasMerged = false; // 是否有合并记录（主记录）
+  let hasUnmerged = false; // 是否有未合并记录
+  let mergedGroupIds = new Set<string>(); // 选中的合并记录的groupId集合
+  
+  // 按groupId分组，找出每个组的第一条记录（主记录）
+  const groupMap = new Map<string, any[]>();
+  flows.forEach((flow: any) => {
+    if (flow.groupId) {
+      if (!groupMap.has(flow.groupId)) {
+        groupMap.set(flow.groupId, []);
+      }
+      groupMap.get(flow.groupId)!.push(flow);
+    }
+  });
+  
+  // 找出每个组的主记录（id最小的记录）
+  const mainRecords = new Map<string, number>(); // groupId -> 主记录id
+  groupMap.forEach((groupFlows, groupId) => {
+    const sortedFlows = [...groupFlows].sort((a, b) => a.id - b.id);
+    if (sortedFlows.length > 0) {
+      mainRecords.set(groupId, sortedFlows[0].id);
+    }
+  });
+  
+  selectedFlows.value.forEach((selectedId) => {
+    const idStr = String(selectedId);
+    // 检查是否是主记录（使用特殊标识符 main-${groupId}）
+    if (idStr.startsWith('main-')) {
+      const groupId = idStr.replace('main-', '');
+      hasMerged = true;
+      mergedGroupIds.add(groupId);
+    } else {
+      // 普通记录或子记录
+      const flow = flows.find((f: any) => f.id === selectedId);
+      if (flow) {
+        if (flow.groupId) {
+          // 这是子记录，不算作合并记录（因为子记录不能单独操作）
+          // 但需要检查是否是主记录对应的第一条子记录
+          const mainRecordId = mainRecords.get(flow.groupId);
+          if (mainRecordId === flow.id) {
+            // 这是主记录对应的第一条子记录，但主记录没有被选中（否则会使用 main-${groupId}）
+            // 这种情况不应该发生，但为了安全起见，我们将其视为子记录
+          }
+        } else {
+          // 独立记录
+          hasUnmerged = true;
+        }
+      }
+    }
+  });
+  
+  // 判断是否可以取消合并：当且仅当选中一条记录且该条记录是主记录
+  const canUnmerge = hasMerged && !hasUnmerged && mergedGroupIds.size === 1 && selectedFlows.value.length === 1;
+  
+  // 判断是否可以合并：
+  // 1. 不能包含合并记录（如果包含合并记录，禁用合并按钮）
+  // 2. 必须选中至少2条未合并记录
+  const canMerge = !hasMerged && selectedFlows.value.length >= 2;
+  
+  return {
+    hasMerged,
+    hasUnmerged,
+    isSingleMerged: canUnmerge,
+    groupId: mergedGroupIds.size === 1 ? Array.from(mergedGroupIds)[0] : null,
+    canMerge,
+    canUnmerge,
+  };
 });
 
 const totalPages = computed(() =>
@@ -576,20 +686,79 @@ const pageNumbers = computed(() => {
 
 // 方法定义
 const toggleSelectAll = () => {
+  // 需要从processedFlows中获取显示记录（合并组只算1条）
+  // 但由于processedFlows在FlowsTable中，我们需要自己计算
   const flows = flowPageRef.value?.data || [];
+  
   if (isAllSelected.value) {
     selectedFlows.value = [];
   } else {
-    selectedFlows.value = flows.map((item: any) => item.id);
+    // 只选择显示记录（合并组只选主记录，不选子记录）
+    const groupMap = new Map<string, any[]>();
+    flows.forEach((flow: any) => {
+      if (flow.groupId) {
+        if (!groupMap.has(flow.groupId)) {
+          groupMap.set(flow.groupId, []);
+        }
+        groupMap.get(flow.groupId)!.push(flow);
+      }
+    });
+    
+    // 选择所有显示记录：主记录使用 main-${groupId}，独立记录使用实际id
+    selectedFlows.value = [];
+    groupMap.forEach((groupFlows, groupId) => {
+      // 每个合并组只选择主记录（使用特殊标识符）
+      selectedFlows.value.push(`main-${groupId}`);
+    });
+    // 添加所有独立记录
+    flows
+      .filter((flow: any) => !flow.groupId)
+      .forEach((flow: any) => {
+        selectedFlows.value.push(flow.id);
+      });
   }
 };
 
 const toggleSelectItem = (id: string | number) => {
-  const index = selectedFlows.value.indexOf(id);
-  if (index > -1) {
-    selectedFlows.value.splice(index, 1);
+  // 如果选择的是主记录（使用特殊标识符 main-${groupId}），需要特殊处理
+  const idStr = String(id);
+  if (idStr.startsWith('main-')) {
+    // 这是主记录，直接使用 main-${groupId} 作为标识符
+    const index = selectedFlows.value.indexOf(idStr);
+    if (index > -1) {
+      selectedFlows.value.splice(index, 1);
+    } else {
+      // 选择主记录时，先移除该合并组的所有子记录（如果有）
+      const groupId = idStr.replace('main-', '');
+      const flows = flowPageRef.value.data || [];
+      selectedFlows.value = selectedFlows.value.filter((selectedId: any) => {
+        const selectedFlow = flows.find((f: any) => f.id === selectedId);
+        return !(selectedFlow && selectedFlow.groupId === groupId);
+      });
+      // 添加主记录的标识符
+      selectedFlows.value.push(idStr);
+    }
   } else {
-    selectedFlows.value.push(id);
+    // 普通记录或子记录的选择
+    // 如果选择的是子记录，需要检查是否与主记录冲突
+    const flows = flowPageRef.value.data || [];
+    const selectedFlow = flows.find((f: any) => f.id === id);
+    if (selectedFlow && selectedFlow.groupId) {
+      // 这是子记录，检查主记录是否已选中
+      const mainId = `main-${selectedFlow.groupId}`;
+      const mainIndex = selectedFlows.value.indexOf(mainId);
+      if (mainIndex > -1) {
+        // 主记录已选中，取消选择主记录
+        selectedFlows.value.splice(mainIndex, 1);
+      }
+    }
+    
+    const index = selectedFlows.value.indexOf(id);
+    if (index > -1) {
+      selectedFlows.value.splice(index, 1);
+    } else {
+      selectedFlows.value.push(id);
+    }
   }
 };
 
@@ -691,6 +860,29 @@ const openCreateDialog = () => {
   selectedFlow.value = {};
 };
 
+// 将主记录的特殊id转换为实际的id列表
+const convertMainIdsToActualIds = (ids: any[]): number[] => {
+  const flows = flowPageRef.value.data || [];
+  const result: number[] = [];
+  
+  ids.forEach((id) => {
+    const idStr = String(id);
+    if (idStr.startsWith('main-')) {
+      // 主记录：获取该合并组的所有子记录的id
+      const groupId = idStr.replace('main-', '');
+      const groupFlows = flows.filter((f: any) => f.groupId === groupId);
+      groupFlows.forEach((flow: any) => {
+        result.push(flow.id);
+      });
+    } else {
+      // 普通记录或子记录：直接使用id
+      result.push(Number(id));
+    }
+  });
+  
+  return result;
+};
+
 const deleteItems = () => {
   if (!isSelectionMode.value || selectedFlows.value.length <= 0) {
     Alert.error("请至少选择一条要删除的流水");
@@ -700,9 +892,11 @@ const deleteItems = () => {
     title: "删除确认",
     content: `确定删除流水 【${selectedFlows.value.length} 条】吗?`,
     confirm: () => {
+      // 将主记录的特殊id转换为实际的id列表
+      const actualIds = convertMainIdsToActualIds(selectedFlows.value);
       doApi
         .post("api/entry/flow/dels", {
-          ids: selectedFlows.value,
+          ids: actualIds,
           bookId: localStorage.getItem("bookId"),
         })
         .then(() => {
@@ -733,13 +927,22 @@ const mergeSelected = () => {
     Alert.error("至少需要选择2条记录才能合并");
     return;
   }
+  
+  // 检查是否包含合并记录
+  if (selectedItemsInfo.value.hasMerged) {
+    Alert.error("不能同时选择合并记录和未合并记录进行合并");
+    return;
+  }
+  
   Confirm.open({
     title: "合并确认",
     content: `确定将选中的 ${selectedFlows.value.length} 条记录合并为一条吗？`,
     confirm: () => {
+      // 将主记录的特殊id转换为实际的id列表（合并操作只接受未合并的记录）
+      const actualIds = convertMainIdsToActualIds(selectedFlows.value);
       doApi
         .post("api/entry/flow/merge", {
-          ids: selectedFlows.value,
+          ids: actualIds,
           bookId: localStorage.getItem("bookId"),
         })
         .then(() => {
@@ -751,6 +954,36 @@ const mergeSelected = () => {
         })
         .catch((error: any) => {
           Alert.error(error?.message || "合并失败");
+        });
+    },
+  });
+};
+
+// 取消合并选中的记录
+const unmergeSelected = () => {
+  if (!isSelectionMode.value || !selectedItemsInfo.value.groupId) {
+    Alert.error("请选择要取消合并的记录");
+    return;
+  }
+  
+  Confirm.open({
+    title: "取消合并确认",
+    content: `确定要取消这个合并组吗？合并的记录将恢复为独立记录。`,
+    confirm: () => {
+      doApi
+        .post("api/entry/flow/unmerge", {
+          groupId: selectedItemsInfo.value.groupId,
+          bookId: localStorage.getItem("bookId"),
+        })
+        .then(() => {
+          Alert.success("取消合并成功");
+          selectedFlows.value = [];
+          doQuery();
+          // 取消合并后退出选择模式
+          exitSelectionMode();
+        })
+        .catch((error: any) => {
+          Alert.error(error?.message || "取消合并失败");
         });
     },
   });
@@ -791,15 +1024,30 @@ const deleteItem = (item: any) => {
     Alert.error("请选择要删除的数据");
     return;
   }
+  
+  // 如果是主记录，提示删除整个合并组
+  const isGroupMain = item.isGroupMain === true;
+  const confirmContent = isGroupMain 
+    ? `确定删除合并记录及其所有子记录吗？此操作不可撤销！`
+    : `确定删除流水 【${item.name}:${item.money}】吗?`;
+  
   Confirm.open({
     title: "删除确认",
-    content: `确定删除流水 【${item.name}:${item.money}】吗?`,
+    content: confirmContent,
     confirm: () => {
+      const deleteData: any = {
+        id: item.id,
+        bookId: localStorage.getItem("bookId"),
+      };
+      
+      // 如果是主记录，传递标记
+      if (isGroupMain && item.groupId) {
+        deleteData.isGroupMain = true;
+        deleteData.groupId = item.groupId;
+      }
+      
       doApi
-        .post("api/entry/flow/del", {
-          id: item.id,
-          bookId: localStorage.getItem("bookId"),
-        })
+        .post("api/entry/flow/del", deleteData)
         .then(() => {
           Alert.success("删除成功");
           doQuery();
@@ -844,9 +1092,11 @@ const confirmBatchChange = () => {
     title: "修改确认",
     content: `确定对【${selectedFlows.value.length}】条流水进行如下修改吗? \n${changeInfo}`,
     confirm: () => {
+      // 将主记录的特殊id转换为实际的id列表
+      const actualIds = convertMainIdsToActualIds(selectedFlows.value);
       doApi
         .post("api/entry/flow/updates", {
-          ids: selectedFlows.value,
+          ids: actualIds,
           bookId: localStorage.getItem("bookId"),
           ...batchChange.value,
         })
@@ -1306,7 +1556,6 @@ const exportJson = () => {
     .then((data) => {
       const fileName = bookName + "-" + new Date().getTime() + ".json";
       exportJsonFile(fileName, JSON.stringify(data));
-      Alert.success("导出成功");
     })
     .catch(() => {
       Alert.error("数据获取出错，无法导出！");
@@ -1323,7 +1572,6 @@ const exportCsv = () => {
     .then((data) => {
       const fileName = bookName + "-" + new Date().getTime() + ".csv";
       exportCsvFile(fileName, data);
-      Alert.success("导出成功");
     })
     .catch(() => {
       Alert.error("数据获取出错，无法导出！");
@@ -1331,7 +1579,7 @@ const exportCsv = () => {
 };
 
 const downloadCsvTemplate = () => {
-  const fileName = "Cashbook模板.csv";
+  const fileName = "青葱记账模板.csv";
   const url = "/csvtemplate.csv";
   const link = document.createElement("a");
   link.href = url;

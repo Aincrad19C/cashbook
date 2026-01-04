@@ -13,8 +13,14 @@
         :value="displayValue"
         :placeholder="placeholder"
         readonly
-        @click="togglePicker"
-        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-green-950 dark:text-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        :disabled="disabled"
+        @click="!disabled && togglePicker()"
+        :class="[
+          'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-green-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
+          disabled 
+            ? 'cursor-not-allowed opacity-50 bg-gray-100 dark:bg-gray-800' 
+            : 'cursor-pointer'
+        ]"
       />
       <div
         class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none"
@@ -88,6 +94,7 @@ interface Props {
   clearable?: boolean;
   format?: string;
   position?: "left" | "right"; // 弹出框对齐方式
+  disabled?: boolean; // 是否禁用
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -95,6 +102,7 @@ const props = withDefaults(defineProps<Props>(), {
   clearable: true,
   format: "YYYY-MM-DD",
   position: "left",
+  disabled: false,
 });
 
 const emit = defineEmits<{
@@ -180,6 +188,7 @@ watch(
 );
 
 const togglePicker = () => {
+  if (props.disabled) return;
   showPicker.value = !showPicker.value;
   // 打开日历 picker 时，如果有选中日期，确保定位到对应的年月
   if (showPicker.value && selectedDate.value) {

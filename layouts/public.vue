@@ -1,8 +1,5 @@
 <script setup lang="ts">
-import {
-  showSetConvertDialog,
-  showChangePasswordDialog,
-} from "~/utils/flag";
+import { showChangePasswordDialog } from "~/utils/flag";
 import { SystemConfig, GlobalUserInfo } from "~/utils/store";
 import { getUserInfo, doApi } from "~/utils/api";
 import type { Book } from "~/utils/table";
@@ -26,7 +23,7 @@ const showGuide = ref(false);
 const guideSteps = [
   {
     target: '[data-guide="sidebar-calendar"]',
-    title: "欢迎使用 Cashbook！",
+    title: "欢迎使用 青葱记账！",
     content: "这是账本日历，您可以在这里查看和记录每天的收支情况。点击日期可以查看当天的流水，点击加号可以快速添加记录。",
     position: "right" as const,
     arrow: "left" as const,
@@ -140,6 +137,10 @@ const logout = () => {
   pageLoading.value = true;
   localStorage.removeItem("bookId");
   localStorage.removeItem("bookName");
+  // 清除登录成功弹窗标记，以便下次登录时能再次显示
+  if (typeof window !== "undefined") {
+    sessionStorage.removeItem("login_success_shown");
+  }
   doApi.get("api/logout").then(() => {
     Alert.success("退出登录");
     setTimeout(() => {
@@ -153,10 +154,6 @@ const navigateToPath = (path: string) => {
   navigateTo({ path: `/${path}` });
 };
 
-const openConvertDialog = () => {
-  showSetConvertDialog.value = true;
-};
-
 const openChangePasswordDialog = () => {
   showChangePasswordDialog.value = true;
 };
@@ -168,7 +165,7 @@ const openChangePasswordDialog = () => {
     <Meta name="description" :content="SystemConfig?.description" />
     <Meta
       name="keywords"
-      :content="`Cashbook,记账本,私人记账,开源账本,dingdangdog,月上老狗,${SystemConfig?.keywords}`"
+      :content="`青葱记账,记账本,私人记账,开源账本,dingdangdog,月上老狗,${SystemConfig?.keywords}`"
     />
   </Head>
 
@@ -178,7 +175,6 @@ const openChangePasswordDialog = () => {
       :is-mobile="isMobile"
       @toggle-sidebar="sidebarOpen = !sidebarOpen"
       @logout="logout"
-      @open-convert-dialog="openConvertDialog"
       @open-change-password-dialog="openChangePasswordDialog"
     />
 
@@ -251,7 +247,6 @@ const openChangePasswordDialog = () => {
     <GlobalConfirm />
 
     <!-- Dialogs -->
-    <DialogSetConvertDialog v-if="showSetConvertDialog" />
     <DialogChangePasswordDialog v-if="showChangePasswordDialog" />
 
     <!-- 新手引导 -->

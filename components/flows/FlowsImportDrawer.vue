@@ -59,6 +59,25 @@
               />
             </svg>
             三方账单导入
+            <button
+              @click.stop="showThirdPartyHelp"
+              class="p-1 rounded-full hover:bg-blue-100 dark:hover:bg-blue-800 transition-colors text-blue-600 dark:text-blue-400"
+              title="帮助"
+            >
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z"
+                />
+              </svg>
+            </button>
           </h4>
           <div class="space-y-2">
             <button
@@ -185,7 +204,7 @@
                   d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                 />
               </svg>
-              自定义CSV导入
+              导入CSV
             </button>
             <button
               @click="$emit('importJson')"
@@ -210,7 +229,7 @@
                   d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                 />
               </svg>
-              JSON导入
+              导入JSON
             </button>
           </div>
         </div>
@@ -290,64 +309,6 @@
             </button>
           </div>
         </div>
-
-        <!-- 模板管理 -->
-        <div
-          class="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4 border border-orange-200 dark:border-orange-800"
-        >
-          <h4
-            class="text-sm font-semibold text-orange-800 dark:text-orange-300 mb-3 flex items-center gap-2"
-          >
-            <svg
-              class="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-            模板导入
-
-            <button
-              @click="$emit('downloadTemplate')"
-              class="text-orange-600 rounded text-sm hover:underline font-medium transition-colors flex items-center gap-2"
-            >
-              下载模板
-            </button>
-          </h4>
-          <div class="space-y-2">
-            <button
-              @click="$emit('importTemplate')"
-              :disabled="isImporting"
-              :class="[
-                'w-full px-3 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2',
-                isImporting
-                  ? 'bg-gray-400 dark:bg-gray-600 text-gray-200 dark:text-gray-400 cursor-not-allowed'
-                  : 'bg-amber-600 hover:bg-amber-700 text-white cursor-pointer'
-              ]"
-            >
-              <svg
-                class="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
-                />
-              </svg>
-              模板导入
-            </button>
-          </div>
-        </div>
       </div>
 
       <!-- 说明文档 -->
@@ -390,16 +351,36 @@
         </div>
       </div>
     </div>
+
+    <!-- 三方账单导入帮助对话框 -->
+    <ThirdPartyImportHelpDialog
+      :show="showHelpDialog"
+      @close="closeHelpDialog"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from "vue";
+import ThirdPartyImportHelpDialog from "~/components/dialog/ThirdPartyImportHelpDialog.vue";
+
 interface Props {
   show: boolean;
   isImporting?: boolean;
 }
 
 const props = defineProps<Props>();
+
+const showHelpDialog = ref(false);
+
+// 显示三方账单导入帮助
+const showThirdPartyHelp = () => {
+  showHelpDialog.value = true;
+};
+
+const closeHelpDialog = () => {
+  showHelpDialog.value = false;
+};
 
 defineEmits<{
   close: [];
@@ -410,8 +391,6 @@ defineEmits<{
   importJson: [];
   exportJson: [];
   exportCsv: [];
-  downloadTemplate: [];
-  importTemplate: [];
 }>();
 </script>
 

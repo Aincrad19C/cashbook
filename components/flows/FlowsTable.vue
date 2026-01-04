@@ -255,7 +255,7 @@
                 <td v-if="isSelectionMode" class="px-2 py-1 whitespace-nowrap pl-6">
                   <input
                     type="checkbox"
-                    :checked="selectedItems.includes(subItem.id)"
+                    :checked="selectedItems.includes(subItem.id) && !(item.isGroupMain && item.groupId && selectedItems.includes(`main-${item.groupId}`))"
                     @change="$emit('toggleSelectItem', subItem.id)"
                     class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
                   />
@@ -495,7 +495,7 @@
               <div class="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  :checked="selectedItems.includes(subItem.id)"
+                  :checked="selectedItems.includes(subItem.id) && !(item.isGroupMain && item.groupId && selectedItems.includes(`main-${item.groupId}`))"
                   @change="$emit('toggleSelectItem', subItem.id)"
                   class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
                 />
@@ -740,7 +740,7 @@ const expandedGroups = ref<Set<string>>(new Set());
               // 如果是第一条（按原始顺序），作为主记录
               // groupItems 包含所有记录（包括第一条），用于展开时显示
               
-              // 根据收入/支出计算净额：收入为正，支出为负
+              // 根据收入/支出计算净额：收入为正，支出为负（用于计算总金额）
               const totalMoney = groupItems.reduce((sum, item) => {
                 const money = Number(item.money) || 0;
                 if (item.flowType === '收入') {
@@ -753,29 +753,33 @@ const expandedGroups = ref<Set<string>>(new Set());
                 }
               }, 0);
               
-              // 根据净额确定显示类型
-              const displayFlowType = totalMoney > 0 ? '收入' : totalMoney < 0 ? '支出' : '不计收支';
-              
-              // 计算日期范围
+              // 计算日期范围（主记录的时间不能修改，根据子记录自动计算）
               const dates = groupItems.map(item => item.day).sort();
               const dateRange = dates.length > 1 ? `${dates[0]} ~ ${dates[dates.length - 1]}` : dates[0];
               
-              // 获取所有不同的类型（用于显示）
-              const flowTypes = [...new Set(groupItems.map(item => item.flowType).filter(Boolean))];
-              const industryTypes = [...new Set(groupItems.map(item => item.industryType).filter(Boolean))];
-              const payTypes = [...new Set(groupItems.map(item => item.payType).filter(Boolean))];
+              // 获取主记录数据（如果存在）
+              const mainData = (flow as any).groupMain;
               
+              // 计算子记录的支出/收入类型，如果不同则默认为"其他"
+              const industryTypes = [...new Set(groupItems.map(item => item.industryType).filter(Boolean))];
+              const defaultIndustryType = industryTypes.length === 1 ? industryTypes[0] : '其他';
+              
+              // 使用主记录的字段，如果不存在则使用计算值
+              // 为主记录使用特殊标识符，避免与第一条子记录的id冲突
               result.push({
-                ...flow, // 保留第一条记录的基本信息作为默认值
-                day: dateRange, // 日期显示为范围
-                flowType: displayFlowType, // 根据净额确定显示类型
-                industryType: industryTypes.length === 1 ? industryTypes[0] : '混合', // 如果类型一致则显示，否则显示"混合"
-                payType: payTypes.length === 1 ? payTypes[0] : '混合', // 如果类型一致则显示，否则显示"混合"
-                name: `合并记录 (${groupItems.length}条)`, // 名称显示为合并记录
-                description: '', // 描述清空
+                ...flow, // 保留第一条记录的基本信息
+                id: `main-${flow.groupId}`, // 主记录使用特殊标识符，避免与子记录id冲突
+                originalId: flow.id, // 保存原始id（第一条子记录的id），用于实际操作
+                day: dateRange, // 日期显示为范围（不能修改）
+                flowType: mainData?.flowType || (totalMoney > 0 ? '收入' : totalMoney < 0 ? '支出' : '不计收支'), // 主记录的流水类型
+                industryType: mainData?.industryType || defaultIndustryType, // 主记录的支出收入类型，如果子记录类型不同则默认为"其他"
+                payType: mainData?.payType || '', // 主记录的支付方式
+                money: mainData?.money || Math.abs(totalMoney), // 主记录的金额
+                name: mainData?.name || `合并记录 (${groupItems.length}条)`, // 主记录的名称
+                description: mainData?.description || '', // 主记录的备注
                 isGroupMain: true,
                 groupItems: groupItems, // 包含所有记录，包括第一条
-                groupTotalMoney: Math.abs(totalMoney), // 存储绝对值用于显示
+                groupTotalMoney: Math.abs(totalMoney), // 存储绝对值用于显示（子记录总金额）
                 groupCount: groupItems.length,
               });
             }

@@ -49,7 +49,12 @@ const validateLoginForm = () => {
 const login = async () => {
   if (validateLoginForm()) {
     doApi.post("api/login", loginParam.value).then((res) => {
-      Alert.success("登录成功");
+      // 检查是否已经显示过登录成功弹窗
+      const loginSuccessShown = sessionStorage.getItem("login_success_shown");
+      if (!loginSuccessShown) {
+        Alert.success("登录成功");
+        sessionStorage.setItem("login_success_shown", "true");
+      }
       navigateTo(fromUrl.value || "/");
     });
   }
@@ -105,6 +110,7 @@ const lookRegisterPS = ref(false);
 const lookRegisterAPS = ref(false);
 
 const fromUrl = ref();
+
 onMounted(async () => {
   const route = useRoute();
   const loginUrl = route.path;
@@ -115,7 +121,12 @@ onMounted(async () => {
 
   // 校验登录
   if (checkSignIn()) {
-    Alert.success("登录成功");
+    // 检查是否已经显示过登录成功弹窗
+    const loginSuccessShown = sessionStorage.getItem("login_success_shown");
+    if (!loginSuccessShown) {
+      Alert.success("登录成功");
+      sessionStorage.setItem("login_success_shown", "true");
+    }
     setTimeout(() => {
       if (fromUrl.value) {
         window.location.href = fromUrl.value;
@@ -155,7 +166,7 @@ onMounted(async () => {
     <Meta name="description" :content="SystemConfig?.description" />
     <Meta
       name="keywords"
-      :content="`Cashbook,记账本,私人记账,开源账本,dingdangdog,月上老狗,${SystemConfig?.keywords}`"
+      :content="`青葱记账,记账本,私人记账,开源账本,dingdangdog,月上老狗,${SystemConfig?.keywords}`"
     />
   </Head>
 

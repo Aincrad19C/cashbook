@@ -95,8 +95,8 @@ const handleNavigate = (menu: Menu) => {
         class="flex items-center justify-between p-4 border-b border-green-100 dark:border-green-900"
       >
         <div class="flex items-center">
-          <img src="/logo.png" alt="Cashbook" class="h-8 w-8" />
-          <span class="ml-2 text-lg font-bold text-green-500">Cashbook</span>
+          <img src="/logo.png" alt="青葱记账" class="h-8 w-8" />
+          <span class="ml-2 text-lg font-bold text-green-500">青葱记账</span>
         </div>
         <button
           @click="emit('close')"
