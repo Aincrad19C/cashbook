@@ -5,7 +5,7 @@ import { getUserId } from "~/server/utils/common";
  * @swagger
  * /api/entry/flow/undo:
  *   post:
- *     summary: 撤销操作
+ *     summary: 撤销删除操作
  *     tags: ["Flow"]
  *     security:
  *       - Authorization: []
@@ -14,11 +14,11 @@ import { getUserId } from "~/server/utils/common";
  *       content:
  *         application/json:
  *           schema:
- *             operation: object 操作信息
+ *             operation: object 删除操作信息
  *             bookId: string 账本ID
  *     responses:
  *       200:
- *         description: 撤销成功
+ *         description: 撤销删除成功
  */
 export default defineEventHandler(async (event) => {
   const body = await readBody(event);
@@ -32,78 +32,7 @@ export default defineEventHandler(async (event) => {
 
   try {
     switch (type) {
-      case 'add': {
-        // 撤销添加：删除新添加的记录
-        if (data.id) {
-          await prisma.flow.delete({
-            where: { id: data.id, bookId },
-          });
-        }
-        return success({ message: '撤销添加成功' });
-      }
 
-      case 'update': {
-        // 撤销修改：恢复修改前的数据
-        if (data.id) {
-          const updateData: any = {
-            day: data.day,
-            flowType: data.flowType,
-            industryType: data.industryType,
-            payType: data.payType,
-            money: data.money,
-            name: data.name,
-            description: data.description,
-            attribution: data.attribution,
-          };
-          await prisma.flow.update({
-            where: { id: data.id, bookId },
-            data: updateData,
-          });
-        }
-        return success({ message: '撤销修改成功' });
-      }
-
-      case 'updateMain': {
-        // 撤销主记录修改：恢复修改前的数据
-        if (data.groupId) {
-          const existingMain = await prisma.flowGroupMain.findUnique({
-            where: { groupId: data.groupId },
-          });
-
-          if (existingMain) {
-            await prisma.flowGroupMain.update({
-              where: { groupId: data.groupId },
-              data: {
-                flowType: data.flowType,
-                industryType: data.industryType,
-                payType: data.payType,
-                money: data.money,
-                name: data.name,
-                description: data.description,
-                attribution: data.attribution,
-              },
-            });
-          } else {
-            // 如果主记录不存在，创建它
-            const userId = await getUserId(event);
-            await prisma.flowGroupMain.create({
-              data: {
-                groupId: data.groupId,
-                bookId,
-                userId,
-                flowType: data.flowType,
-                industryType: data.industryType,
-                payType: data.payType,
-                money: data.money,
-                name: data.name,
-                description: data.description,
-                attribution: data.attribution,
-              },
-            });
-          }
-        }
-        return success({ message: '撤销主记录修改成功' });
-      }
 
       case 'delete': {
         // 撤销删除：恢复删除的记录
@@ -213,111 +142,12 @@ export default defineEventHandler(async (event) => {
         return success({ message: '撤销删除成功' });
       }
 
-      case 'merge': {
-        // 撤销合并：取消合并（清除groupId）
-        if (data.ids && Array.isArray(data.ids)) {
-          await prisma.flow.updateMany({
-            where: {
-              id: { in: data.ids.map((id: any) => Number(id)) },
-              bookId,
-            },
-            data: {
-              groupId: null,
-            },
-          });
-          // 删除主记录
-          if (data.groupId) {
-            try {
-              await prisma.flowGroupMain.deleteMany({
-                where: { groupId: data.groupId },
-              });
-            } catch (e: any) {
-              // 忽略错误
-            }
-          }
-        }
-        return success({ message: '撤销合并成功' });
-      }
-
-      case 'unmerge': {
-        // 撤销取消合并：重新合并
-        if (data.groupId && data.ids && Array.isArray(data.ids)) {
-          await prisma.flow.updateMany({
-            where: {
-              id: { in: data.ids.map((id: any) => Number(id)) },
-              bookId,
-            },
-            data: {
-              groupId: data.groupId,
-            },
-          });
-          // 恢复主记录
-          if (data.groupMain) {
-            const userId = await getUserId(event);
-            try {
-              await prisma.flowGroupMain.create({
-                data: {
-                  groupId: data.groupId,
-                  bookId,
-                  userId,
-                  flowType: data.groupMain.flowType,
-                  industryType: data.groupMain.industryType,
-                  payType: data.groupMain.payType,
-                  money: data.groupMain.money,
-                  name: data.groupMain.name,
-                  description: data.groupMain.description,
-                  attribution: data.groupMain.attribution,
-                },
-              });
-            } catch (e: any) {
-              // 如果已存在，更新它
-              if (e.code === 'P2002') {
-                await prisma.flowGroupMain.update({
-                  where: { groupId: data.groupId },
-                  data: {
-                    flowType: data.groupMain.flowType,
-                    industryType: data.groupMain.industryType,
-                    payType: data.groupMain.payType,
-                    money: data.groupMain.money,
-                    name: data.groupMain.name,
-                    description: data.groupMain.description,
-                    attribution: data.groupMain.attribution,
-                  },
-                });
-              }
-            }
-          }
-        }
-        return success({ message: '撤销取消合并成功' });
-      }
-
-      case 'batchUpdate': {
-        // 撤销批量修改：恢复修改前的数据
-        if (data.flows && Array.isArray(data.flows)) {
-          for (const flow of data.flows) {
-            const updateData: any = {};
-            if (flow.flowType !== undefined) updateData.flowType = flow.flowType;
-            if (flow.industryType !== undefined) updateData.industryType = flow.industryType;
-            if (flow.payType !== undefined) updateData.payType = flow.payType;
-            if (flow.attribution !== undefined) updateData.attribution = flow.attribution;
-            
-            if (Object.keys(updateData).length > 0) {
-              await prisma.flow.update({
-                where: { id: flow.id, bookId },
-                data: updateData,
-              });
-            }
-          }
-        }
-        return success({ message: '撤销批量修改成功' });
-      }
 
       default:
-        return error('不支持的操作类型');
+        return error('仅支持撤销删除操作');
     }
   } catch (error: any) {
-    console.error('撤销操作失败:', error);
-    return error(error?.message || '撤销操作失败');
+    return error(error?.message || '撤销删除失败');
   }
 });
 

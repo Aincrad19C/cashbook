@@ -121,8 +121,8 @@
             ]"
           >
             <ArrowUturnLeftIcon class="w-4 h-4" />
-            <span class="hidden sm:inline">撤销</span>
-            <span class="sm:hidden">撤销</span>
+            <span class="hidden sm:inline">撤销删除</span>
+            <span class="sm:hidden">撤销删除</span>
           </button>
           <button
             @click="$emit('openSearch')"

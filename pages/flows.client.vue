@@ -388,7 +388,6 @@
       :title="dialogFormTitle"
       :flow="selectedFlow"
       :success-callback="handleEditSuccess"
-      :on-operation-success="handleOperationSuccess"
     />
 
   </div>
@@ -490,20 +489,20 @@ const batchChange = ref<any>({
   attribution: "",
 });
 
-// 撤销栈
+// 撤销栈（仅支持删除操作）
 interface UndoOperation {
-  type: 'add' | 'update' | 'updateMain' | 'delete' | 'merge' | 'unmerge' | 'batchUpdate';
-  data: any; // 操作前的数据或操作信息
+  type: 'delete';
+  data: any; // 删除的记录数据
   timestamp: number;
 }
 
 const undoStack = ref<UndoOperation[]>([]);
 const canUndo = computed(() => undoStack.value.length > 0);
 
-// 保存操作到撤销栈
-const saveToUndoStack = (type: UndoOperation['type'], data: any) => {
+// 保存删除操作到撤销栈
+const saveToUndoStack = (data: any) => {
   undoStack.value.push({
-    type,
+    type: 'delete',
     data,
     timestamp: Date.now(),
   });
@@ -513,10 +512,10 @@ const saveToUndoStack = (type: UndoOperation['type'], data: any) => {
   }
 };
 
-// 处理撤销
+// 处理撤销删除
 const handleUndo = async () => {
   if (undoStack.value.length === 0) {
-    Alert.error("没有可撤销的操作");
+    Alert.error("没有可撤销的删除操作");
     return;
   }
 
@@ -530,7 +529,7 @@ const handleUndo = async () => {
       operation,
       bookId: localStorage.getItem("bookId"),
     });
-    Alert.success("撤销成功");
+    Alert.success("撤销删除成功");
     doQuery();
   } catch (error: any) {
     Alert.error(error?.message || "撤销失败");
@@ -542,11 +541,6 @@ const handleUndo = async () => {
 // 处理编辑成功回调
 const handleEditSuccess = (res: any) => {
   doQuery();
-};
-
-// 处理操作成功回调（用于撤销功能）
-const handleOperationSuccess = (operation: { type: string; data: any }) => {
-  saveToUndoStack(operation.type as any, operation.data);
 };
 
 // 获取数据列表
@@ -962,10 +956,10 @@ const deleteItems = () => {
           bookId: localStorage.getItem("bookId"),
         })
         .then((res: any) => {
-          // 保存批量删除操作到撤销栈
-          saveToUndoStack('delete', {
-            flows: res.flows || [],
-          });
+              // 保存批量删除操作到撤销栈
+              saveToUndoStack({
+                flows: res.flows || [],
+              });
           Alert.success("删除成功");
           selectedFlows.value = [];
           doQuery();
@@ -1012,11 +1006,7 @@ const mergeSelected = () => {
           bookId: localStorage.getItem("bookId"),
         })
         .then((res: any) => {
-          // 保存合并操作到撤销栈
-          saveToUndoStack('merge', {
-            ids: actualIds,
-            groupId: res.groupId,
-          });
+          // 合并操作不需要撤销功能
           Alert.success("合并成功");
           selectedFlows.value = [];
           doQuery();
@@ -1062,12 +1052,7 @@ const unmergeSelected = () => {
               bookId: localStorage.getItem("bookId"),
             })
             .then(() => {
-              // 保存取消合并操作到撤销栈
-              saveToUndoStack('unmerge', {
-                groupId,
-                ids: groupFlows.map((f: any) => f.id),
-                groupMain,
-              });
+              // 取消合并操作不需要撤销功能
               Alert.success("取消合并成功");
               selectedFlows.value = [];
               doQuery();
@@ -1147,14 +1132,14 @@ const deleteItem = (item: any) => {
         .then((res: any) => {
           // 保存删除操作到撤销栈
           if (isGroupMain && item.groupId) {
-            saveToUndoStack('delete', {
+            saveToUndoStack({
               isGroupMain: true,
               groupId: item.groupId,
               flows: res.flows || [],
               groupMain: res.groupMain || null,
             });
           } else {
-            saveToUndoStack('delete', {
+            saveToUndoStack({
               flow: res,
             });
           }
@@ -1218,16 +1203,6 @@ const confirmBatchChange = () => {
               ...batchChange.value,
             })
             .then(() => {
-              // 保存批量修改操作到撤销栈
-              saveToUndoStack('batchUpdate', {
-                flows: flowsToUpdate.map((f: any) => ({
-                  id: f.id,
-                  flowType: f.flowType,
-                  industryType: f.industryType,
-                  payType: f.payType,
-                  attribution: f.attribution,
-                })),
-              });
               Alert.success("修改成功");
               closeBatchChangeDialog();
               selectedFlows.value = [];
