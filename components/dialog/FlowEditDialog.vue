@@ -414,9 +414,15 @@ const changeFlowTypes = () => {
   }
 
   getPayType(flowEdit.value.flowType || "").then((data) => {
-    payTypeOptions.value = data.map((d) => {
+    const payTypes = data.map((d) => {
       return d.payType;
     });
+    // 默认支付方式：支付宝、银行卡
+    const defaultPayTypes = ["支付宝", "银行卡"];
+    // 合并数据库中的支付方式和默认支付方式，去重
+    payTypeOptions.value = Array.from(new Set([...defaultPayTypes, ...payTypes])).filter(
+      (type) => type
+    );
   });
 };
 changeFlowTypes();

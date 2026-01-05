@@ -408,7 +408,13 @@ const loadTypeOptions = async (flowType?: string) => {
     ]);
 
     industryTypeOptions.value = industryData.map((d) => d.industryType);
-    payTypeOptions.value = payData.map((d) => d.payType);
+    const payTypes = payData.map((d) => d.payType);
+    // 默认支付方式：支付宝、银行卡
+    const defaultPayTypes = ["支付宝", "银行卡"];
+    // 合并数据库中的支付方式和默认支付方式，去重
+    payTypeOptions.value = Array.from(new Set([...defaultPayTypes, ...payTypes])).filter(
+      (type) => type
+    );
   } catch (error) {
     console.error("获取类型选项失败:", error);
   }
