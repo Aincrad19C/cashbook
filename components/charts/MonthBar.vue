@@ -155,11 +155,23 @@ const updateChartData = () => {
   notInOut.length = 0;
   xAxisList.length = 0;
 
-  const startIndex = currentPageIndex.value * MONTHS_PER_PAGE;
-  const endIndex = Math.min(
-    startIndex + MONTHS_PER_PAGE,
-    allData.value.length
-  );
+  let startIndex: number;
+  let endIndex: number;
+
+  // 如果是最后一页，确保显示最新的6个月（如果可能）
+  if (currentPageIndex.value >= totalPages.value - 1) {
+    // 计算最新的6个月的起始索引
+    const startIndexForLatest6 = Math.max(0, allData.value.length - MONTHS_PER_PAGE);
+    startIndex = startIndexForLatest6;
+    endIndex = allData.value.length;
+  } else {
+    // 其他页面按正常分页逻辑
+    startIndex = currentPageIndex.value * MONTHS_PER_PAGE;
+    endIndex = Math.min(
+      startIndex + MONTHS_PER_PAGE,
+      allData.value.length
+    );
+  }
 
   const currentPageData = allData.value.slice(startIndex, endIndex);
 
@@ -300,8 +312,9 @@ const doQuery = () => {
         });
         noData.value = false;
 
-        // 重置到第一页
-        currentPageIndex.value = 0;
+        // 设置到最后一页，updateChartData会确保显示最新的6个月
+        const totalPages = Math.ceil(allData.value.length / MONTHS_PER_PAGE);
+        currentPageIndex.value = Math.max(0, totalPages - 1);
 
         // 更新图表数据
         updateChartData();
